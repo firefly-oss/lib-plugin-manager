@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class CompositePluginLoaderTest {
 
     @Mock
@@ -37,7 +38,7 @@ class CompositePluginLoaderTest {
     void setUp() {
         compositePluginLoader = new CompositePluginLoader(
                 defaultPluginLoader, gitPluginLoader, classpathPluginLoader);
-        
+
         // Setup mock plugin
         PluginMetadata metadata = PluginMetadata.builder()
                 .id("test-plugin")

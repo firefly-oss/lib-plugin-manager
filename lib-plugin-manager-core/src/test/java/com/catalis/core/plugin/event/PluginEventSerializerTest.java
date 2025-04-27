@@ -25,7 +25,12 @@ public class PluginEventSerializerTest {
 
     // Test event classes
     private static class TestEvent extends PluginEvent {
-        private final String message;
+        private String message;
+
+        // Default constructor for Jackson
+        public TestEvent() {
+            super("", "TEST_EVENT");
+        }
 
         public TestEvent(String pluginId, String message) {
             super(pluginId, "TEST_EVENT");
@@ -40,10 +45,19 @@ public class PluginEventSerializerTest {
         public String getMessage() {
             return message;
         }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
     }
 
     private static class AnotherTestEvent extends PluginEvent {
-        private final int value;
+        private int value;
+
+        // Default constructor for Jackson
+        public AnotherTestEvent() {
+            super("", "ANOTHER_TEST_EVENT");
+        }
 
         public AnotherTestEvent(String pluginId, int value) {
             super(pluginId, "ANOTHER_TEST_EVENT");
@@ -58,21 +72,34 @@ public class PluginEventSerializerTest {
         public int getValue() {
             return value;
         }
+
+        public void setValue(int value) {
+            this.value = value;
+        }
     }
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
+
+        // Register the test event classes with the ObjectMapper
+        objectMapper.registerSubtypes(
+            TestEvent.class,
+            AnotherTestEvent.class,
+            PluginLifecycleEvent.class,
+            PluginConfigurationEvent.class
+        );
+
         serializer = new PluginEventSerializer(objectMapper, applicationContext);
-        
+
         // Mock the ApplicationContext to return our test events
         Map<String, PluginEvent> eventBeans = Map.of(
                 "testEvent", new TestEvent("test-plugin", "Test message"),
                 "anotherTestEvent", new AnotherTestEvent("test-plugin", 42)
         );
-        
+
         when(applicationContext.getBeansOfType(PluginEvent.class)).thenReturn(eventBeans);
-        
+
         // Initialize the serializer
         serializer.init();
     }
@@ -85,19 +112,19 @@ public class PluginEventSerializerTest {
                 com.catalis.core.plugin.model.PluginState.INITIALIZED,
                 com.catalis.core.plugin.model.PluginState.STARTED
         );
-        
+
         // Serialize to JSON
         String json = objectMapper.writeValueAsString(event);
-        
+
         // Verify JSON contains expected fields
         assertTrue(json.contains("\"pluginId\":\"test-plugin\""));
         assertTrue(json.contains("\"eventType\":\"LIFECYCLE\""));
         assertTrue(json.contains("\"previousState\":\"INITIALIZED\""));
         assertTrue(json.contains("\"newState\":\"STARTED\""));
-        
+
         // Deserialize from JSON
         PluginEvent deserializedEvent = objectMapper.readValue(json, PluginEvent.class);
-        
+
         // Verify deserialized event
         assertTrue(deserializedEvent instanceof PluginLifecycleEvent);
         PluginLifecycleEvent lifecycleEvent = (PluginLifecycleEvent) deserializedEvent;
@@ -112,25 +139,29 @@ public class PluginEventSerializerTest {
         // Create a PluginConfigurationEvent
         Map<String, Object> prevConfig = Map.of("key1", "value1");
         Map<String, Object> newConfig = Map.of("key1", "value2", "key2", 42);
-        
+
         PluginConfigurationEvent event = new PluginConfigurationEvent(
                 "test-plugin",
                 prevConfig,
                 newConfig
         );
-        
+
         // Serialize to JSON
         String json = objectMapper.writeValueAsString(event);
-        
+
         // Verify JSON contains expected fields
-        assertTrue(json.contains("\"pluginId\":\"test-plugin\""));
-        assertTrue(json.contains("\"eventType\":\"CONFIGURATION\""));
-        assertTrue(json.contains("\"previousConfiguration\":{\"key1\":\"value1\"}"));
-        assertTrue(json.contains("\"newConfiguration\":{\"key1\":\"value2\",\"key2\":42}"));
-        
+        assertTrue(json.contains("\"pluginId\":\"test-plugin\""), "JSON should contain pluginId");
+        assertTrue(json.contains("\"eventType\":\"CONFIGURATION\""), "JSON should contain eventType");
+
+        // Parse the JSON to verify the configuration maps instead of string matching
+        com.fasterxml.jackson.databind.JsonNode jsonNode = objectMapper.readTree(json);
+        assertEquals("value1", jsonNode.get("previousConfiguration").get("key1").asText());
+        assertEquals("value2", jsonNode.get("newConfiguration").get("key1").asText());
+        assertEquals(42, jsonNode.get("newConfiguration").get("key2").asInt());
+
         // Deserialize from JSON
         PluginEvent deserializedEvent = objectMapper.readValue(json, PluginEvent.class);
-        
+
         // Verify deserialized event
         assertTrue(deserializedEvent instanceof PluginConfigurationEvent);
         PluginConfigurationEvent configEvent = (PluginConfigurationEvent) deserializedEvent;
@@ -144,21 +175,21 @@ public class PluginEventSerializerTest {
     void testSerializeAndDeserializeCustomEvent() throws Exception {
         // Register our custom event types
         objectMapper.registerSubtypes(TestEvent.class, AnotherTestEvent.class);
-        
+
         // Create a custom event
         TestEvent event = new TestEvent("test-plugin", "Hello, world!");
-        
+
         // Serialize to JSON
         String json = objectMapper.writeValueAsString(event);
-        
+
         // Verify JSON contains expected fields
         assertTrue(json.contains("\"pluginId\":\"test-plugin\""));
         assertTrue(json.contains("\"eventType\":\"TEST_EVENT\""));
         assertTrue(json.contains("\"message\":\"Hello, world!\""));
-        
+
         // Deserialize from JSON
         PluginEvent deserializedEvent = objectMapper.readValue(json, PluginEvent.class);
-        
+
         // Verify deserialized event
         assertTrue(deserializedEvent instanceof TestEvent);
         TestEvent testEvent = (TestEvent) deserializedEvent;

@@ -18,10 +18,14 @@ Unit tests focus on testing individual components in isolation, using mocks for 
   - `DefaultPluginEventBusTest`: Tests the in-memory event bus implementation.
   - `KafkaPluginEventBusTest`: Tests the Kafka-based event bus implementation.
   - `PluginEventSerializerTest`: Tests the serialization and deserialization of plugin events.
+  - `EventBusConfigurationTest`: Tests the configuration options for selecting between in-memory and Kafka event buses.
 
 - **Plugin Management Tests**
   - `DefaultPluginManagerTest`: Tests the high-level plugin management operations.
   - `DefaultPluginLoaderTest`: Tests the plugin loading functionality.
+  - `GitPluginLoaderTest`: Tests loading plugins from Git repositories.
+  - `ClasspathPluginLoaderTest`: Tests auto-detection and loading of plugins from the classpath.
+  - `CompositePluginLoaderTest`: Tests the composite loader that delegates to specific loaders.
   - `PluginClassLoaderTest`: Tests the plugin class loader isolation.
 
 - **Configuration Tests**
@@ -34,6 +38,8 @@ Integration tests verify that different components work together correctly.
 
 - `PluginSystemIntegrationTest`: Tests the end-to-end plugin lifecycle and interactions between components.
 - `KafkaIntegrationTest`: Tests the integration with Kafka for distributed event processing.
+- `GitRepositoryIntegrationTest`: Tests the end-to-end process of installing plugins from Git repositories.
+- `ClasspathPluginIntegrationTest`: Tests the auto-detection and installation of plugins from the classpath.
 
 ## Running the Tests
 
@@ -89,13 +95,27 @@ Example:
 ENABLE_KAFKA_TESTS=true mvn test -Dtest=KafkaIntegrationTest
 ```
 
+### Git Repository Tests
+
+The Git repository integration tests require special configuration:
+
+1. By default, these tests use mock Git repositories to avoid network dependencies.
+2. To test with real Git repositories, set the environment variable `USE_REAL_GIT_REPOS=true`.
+3. When using real repositories, you can configure the test repository URL with `TEST_GIT_REPO_URL`.
+
+Example:
+
+```bash
+USE_REAL_GIT_REPOS=true TEST_GIT_REPO_URL=https://github.com/example/test-plugin.git mvn test -Dtest=GitRepositoryIntegrationTest
+```
+
 ## Test Coverage
 
 The test suite aims to provide comprehensive coverage of the Firefly Plugin Manager functionality:
 
 - **Plugin Lifecycle**: Tests for installing, initializing, starting, stopping, and uninstalling plugins.
 - **Extension Management**: Tests for registering extension points and extensions, and retrieving extensions.
-- **Event Communication**: Tests for publishing and subscribing to events, both in-memory and via Kafka.
+- **Event Communication**: Tests for publishing and subscribing to events, both in-memory and via Kafka. Tests verify that the system works correctly with either event bus implementation and that switching between them is seamless.
 - **Configuration**: Tests for configuration properties and their effects on the system.
 - **Security**: Tests for class loading isolation and security boundaries.
 
@@ -139,3 +159,23 @@ When adding new tests:
 4. Use `StepVerifier` for testing reactive code.
 5. Include both positive and negative test cases.
 6. Document any special setup or requirements in the test class JavaDoc.
+
+## Testing Alternative Plugin Installation Methods
+
+### Testing Git Repository Installation
+
+When testing the Git repository plugin installation:
+
+1. Use mock Git repositories for unit tests.
+2. Test both HTTPS and SSH authentication methods.
+3. Test branch and tag selection.
+4. Test error handling for network issues and invalid repositories.
+
+### Testing Classpath Plugin Installation
+
+When testing the classpath plugin installation:
+
+1. Test detection of plugins with the `@Plugin` annotation.
+2. Test scanning specific packages vs. the entire classpath.
+3. Test handling of duplicate plugins.
+4. Test dependency resolution between classpath plugins.

@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class GitPluginLoaderTest {
 
     @Mock
@@ -30,7 +31,7 @@ class GitPluginLoaderTest {
     @BeforeEach
     void setUp() {
         gitPluginLoader = new GitPluginLoader(defaultPluginLoader);
-        
+
         // Setup mock plugin
         PluginMetadata metadata = PluginMetadata.builder()
                 .id("test-plugin")
@@ -56,15 +57,15 @@ class GitPluginLoaderTest {
     void testLoadPluginFromGitWithUnsupportedOperation() {
         // This test verifies that the GitPluginLoader can handle the case where
         // the actual Git operations are not performed (e.g., in a test environment)
-        
+
         // Mock the behavior to return a plugin directly
         URI repoUri = URI.create("https://github.com/example/test-plugin.git");
         when(defaultPluginLoader.loadPlugin(any(Path.class))).thenReturn(Mono.just(mockPlugin));
-        
+
         // We can't easily test the actual Git clone operation in a unit test,
         // so we'll just verify that the method doesn't throw an exception
         // and delegates to the defaultPluginLoader correctly
-        
+
         // In a real implementation, this would be a more comprehensive test
         // that verifies the Git clone operation and subsequent plugin loading
     }

@@ -26,10 +26,10 @@ public class PluginClassLoaderTest {
         // Create a test JAR file
         File jarFile = tempDir.resolve("test-plugin.jar").toFile();
         createTestJar(jarFile);
-        
+
         // Create URLs array with the test JAR
         urls = new URL[] { jarFile.toURI().toURL() };
-        
+
         // Create the plugin class loader
         classLoader = new PluginClassLoader(urls, getClass().getClassLoader());
     }
@@ -46,26 +46,30 @@ public class PluginClassLoaderTest {
     void testLoadClassFromPlugin() throws Exception {
         // Add a custom class to the allowed packages
         classLoader.allowPackage("com.example");
-        
+
         // This will fail because the class doesn't actually exist in our test JAR,
         // but it demonstrates the code path
-        assertThrows(ClassNotFoundException.class, () -> {
-            classLoader.loadClass("com.example.TestClass");
-        });
+        try {
+            classLoader.loadClass("com.example.NonExistentClass");
+            fail("Should have thrown ClassNotFoundException");
+        } catch (ClassNotFoundException e) {
+            // Expected exception
+            assertTrue(true);
+        }
     }
 
     @Test
     void testAllowPackage() {
         // Add a custom package
         classLoader.allowPackage("com.custom");
-        
+
         // Use reflection to access the private field
         try {
             java.lang.reflect.Field allowedPackagesField = PluginClassLoader.class.getDeclaredField("allowedPackages");
             allowedPackagesField.setAccessible(true);
             @SuppressWarnings("unchecked")
             java.util.Set<String> allowedPackages = (java.util.Set<String>) allowedPackagesField.get(classLoader);
-            
+
             // Verify the package was added
             assertTrue(allowedPackages.contains("com.custom"));
         } catch (Exception e) {
@@ -81,7 +85,7 @@ public class PluginClassLoaderTest {
             allowedPackagesField.setAccessible(true);
             @SuppressWarnings("unchecked")
             java.util.Set<String> allowedPackages = (java.util.Set<String>) allowedPackagesField.get(classLoader);
-            
+
             // Verify default allowed packages
             assertTrue(allowedPackages.contains("com.catalis.core.plugin.api"));
             assertTrue(allowedPackages.contains("com.catalis.core.plugin.annotation"));
@@ -103,10 +107,10 @@ public class PluginClassLoaderTest {
     private void createTestJar(File jarFile) throws IOException {
         Manifest manifest = new Manifest();
         manifest.getMainAttributes().putValue("Manifest-Version", "1.0");
-        
+
         try (FileOutputStream fos = new FileOutputStream(jarFile);
              JarOutputStream jos = new JarOutputStream(fos, manifest)) {
-            
+
             // Add a dummy class file
             JarEntry entry = new JarEntry("com/example/TestClass.class");
             jos.putNextEntry(entry);

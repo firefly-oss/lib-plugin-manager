@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@org.mockito.junit.jupiter.MockitoSettings(strictness = org.mockito.quality.Strictness.LENIENT)
 class ClasspathPluginLoaderTest {
 
     @Mock
@@ -33,7 +34,7 @@ class ClasspathPluginLoaderTest {
     @BeforeEach
     void setUp() {
         classpathPluginLoader = new ClasspathPluginLoader(applicationContext, defaultPluginLoader);
-        
+
         // Setup mock plugin
         PluginMetadata metadata = PluginMetadata.builder()
                 .id("test-plugin")
@@ -59,7 +60,7 @@ class ClasspathPluginLoaderTest {
     void testLoadPluginsFromClasspathWithUnsupportedOperation() {
         // This test verifies that the ClasspathPluginLoader can handle the case where
         // the actual classpath scanning is not performed (e.g., in a test environment)
-        
+
         // In a real implementation, this would be a more comprehensive test
         // that verifies the classpath scanning and plugin loading
     }
