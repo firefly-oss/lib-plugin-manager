@@ -9,10 +9,15 @@ import java.util.List;
 
 /**
  * Configuration properties for the plugin manager.
+ * This class defines the configuration properties that can be set in application.properties or application.yml.
  */
 @Component
 @ConfigurationProperties(prefix = "firefly.plugin-manager")
 public class PluginManagerProperties {
+
+    /**
+     * Creates a new PluginManagerProperties instance with default values.
+     */
 
     /**
      * The directory where plugins are stored.
@@ -48,6 +53,10 @@ public class PluginManagerProperties {
      * Configuration properties for the event bus.
      */
     public static class EventBusProperties {
+
+        /**
+         * Creates a new EventBusProperties instance with default values.
+         */
 
         /**
          * The type of event bus to use (in-memory, kafka).
@@ -127,6 +136,10 @@ public class PluginManagerProperties {
      * Kafka dependencies must be on the classpath and a Kafka broker must be running.
      */
     public static class KafkaProperties {
+
+        /**
+         * Creates a new KafkaProperties instance with default values.
+         */
 
         /**
          * Comma-separated list of Kafka bootstrap servers.

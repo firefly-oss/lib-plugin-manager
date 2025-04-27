@@ -14,9 +14,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Default implementation of the ExtensionRegistry interface.
+ * This class manages the registration and retrieval of extension points and their implementations.
  */
 @Component
 public class DefaultExtensionRegistry implements ExtensionRegistry {
+
+    /**
+     * Creates a new DefaultExtensionRegistry.
+     * Initializes the internal data structures for tracking extension points and extensions.
+     */
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultExtensionRegistry.class);
 

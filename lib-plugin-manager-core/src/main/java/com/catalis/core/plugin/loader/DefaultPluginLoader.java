@@ -24,9 +24,15 @@ import java.util.jar.Manifest;
 
 /**
  * Default implementation of the PluginLoader interface.
+ * This class is responsible for loading plugins from JAR files.
  */
 @Component
 public class DefaultPluginLoader implements PluginLoader {
+
+    /**
+     * Creates a new DefaultPluginLoader.
+     * Initializes the loader with default settings for loading plugins from JAR files.
+     */
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultPluginLoader.class);
 

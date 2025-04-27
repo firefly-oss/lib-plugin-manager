@@ -25,6 +25,7 @@ import org.springframework.context.annotation.Primary;
 
 /**
  * Auto-configuration for the plugin manager.
+ * This class provides Spring beans for the plugin manager and its dependencies.
  */
 @Configuration
 @EnableConfigurationProperties(PluginManagerProperties.class)
@@ -44,7 +45,7 @@ public class PluginManagerAutoConfiguration {
     /**
      * Creates a plugin event serializer bean if one doesn't exist.
      *
-     * @param objectMapper the object mapper
+     * @param pluginEventObjectMapper the object mapper for plugin events
      * @param applicationContext the application context
      * @return the plugin event serializer
      */
@@ -71,7 +72,7 @@ public class PluginManagerAutoConfiguration {
      * This bean is only created if Kafka classes are available on the classpath and the event bus type
      * is explicitly set to "kafka" in the configuration.
      *
-     * @param objectMapper the object mapper
+     * @param pluginEventObjectMapper the object mapper for plugin events
      * @param properties the plugin manager properties
      * @return the Kafka plugin event bus
      */
