@@ -26,7 +26,13 @@ Unit tests focus on testing individual components in isolation, using mocks for 
   - `GitPluginLoaderTest`: Tests loading plugins from Git repositories.
   - `ClasspathPluginLoaderTest`: Tests auto-detection and loading of plugins from the classpath.
   - `CompositePluginLoaderTest`: Tests the composite loader that delegates to specific loaders.
-  - `PluginClassLoaderTest`: Tests the plugin class loader isolation.
+
+- **Security Tests**
+  - `PluginClassLoaderTest`: Tests the plugin class loader isolation and package access control.
+  - `PluginPermissionTest`: Tests the permission system for controlling plugin access.
+  - `PluginSecurityManagerTest`: Tests the security manager that enforces permissions.
+  - `PluginResourceLimiterTest`: Tests the resource limiting functionality for plugins.
+  - `PluginSignatureVerifierTest`: Tests the signature verification for plugin JARs.
 
 - **Configuration Tests**
   - `PluginManagerPropertiesTest`: Tests the configuration properties binding.
@@ -117,7 +123,7 @@ The test suite aims to provide comprehensive coverage of the Firefly Plugin Mana
 - **Extension Management**: Tests for registering extension points and extensions, and retrieving extensions.
 - **Event Communication**: Tests for publishing and subscribing to events, both in-memory and via Kafka. Tests verify that the system works correctly with either event bus implementation and that switching between them is seamless.
 - **Configuration**: Tests for configuration properties and their effects on the system.
-- **Security**: Tests for class loading isolation and security boundaries.
+- **Security**: Tests for class loading isolation, permission system, resource limiting, and signature verification. The security tests verify that plugins can only access resources they have permission for, that resource usage is properly limited, and that plugin signatures are correctly verified.
 
 ## Mock Plugins
 
@@ -149,6 +155,10 @@ If you encounter issues with the tests:
 
 4. **Reactive Test Timeouts**: If reactive tests are timing out, check for missing subscriptions or terminal signals in the reactive streams.
 
+5. **Security Manager Issues**: If you see `SecurityException` in tests not related to security, it might be because the security manager is still active from a previous test. Make sure to reset the security manager in the `tearDown` method.
+
+6. **Resource Limiter Issues**: If resource limiter tests are failing, check that the test is properly cleaning up resources (threads, file handles, etc.) after each test.
+
 ## Adding New Tests
 
 When adding new tests:
@@ -179,3 +189,46 @@ When testing the classpath plugin installation:
 2. Test scanning specific packages vs. the entire classpath.
 3. Test handling of duplicate plugins.
 4. Test dependency resolution between classpath plugins.
+
+## Testing Security Features
+
+### Testing Class Loading Isolation
+
+When testing the class loading isolation:
+
+1. Test that plugins can only access classes from allowed packages.
+2. Test that plugins cannot access classes from other plugins unless explicitly exported.
+3. Test that plugins can export packages to other plugins.
+4. Test that the class loader properly cleans up resources when closed.
+5. Test that the class loader tracks loaded classes for monitoring purposes.
+
+### Testing Permission System
+
+When testing the permission system:
+
+1. Test that plugins can only perform operations they have permission for.
+2. Test that permissions can be added and removed dynamically.
+3. Test that permissions can be scoped to specific targets (e.g., specific directories or hosts).
+4. Test that permission implications work correctly (e.g., a general permission implies more specific ones).
+5. Test that the security manager correctly identifies the plugin context when checking permissions.
+
+### Testing Resource Limiting
+
+When testing the resource limiting:
+
+1. Test that plugins cannot exceed their memory allocation limits.
+2. Test that plugins cannot create more threads than allowed.
+3. Test that plugins cannot open more file handles than allowed.
+4. Test that plugins cannot open more network connections than allowed.
+5. Test that resource usage is properly tracked and reported.
+6. Test that resource limits can be configured globally and per-plugin.
+
+### Testing Signature Verification
+
+When testing the signature verification:
+
+1. Test that signed plugins are correctly verified.
+2. Test that unsigned plugins are rejected when signatures are required.
+3. Test that plugins signed with untrusted certificates are rejected.
+4. Test that trusted certificates can be added and used for verification.
+5. Test that the verification process checks all entries in the JAR file.

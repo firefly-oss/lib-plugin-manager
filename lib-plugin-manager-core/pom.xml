@@ -51,6 +51,15 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
         </dependency>
 
+        <!-- Java Debug Interface (JDI) for debugging -->
+        <dependency>
+            <groupId>org.openjdk.jdk</groupId>
+            <artifactId>jdk-tools</artifactId>
+            <scope>system</scope>
+            <version>1.0</version>
+            <systemPath>${java.home}/lib/jrt-fs.jar</systemPath>
+        </dependency>
+
         <!-- Jakarta EE API -->
         <dependency>
             <groupId>jakarta.annotation</groupId>

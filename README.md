@@ -55,8 +55,22 @@ A modular plugin system for extending Firefly Core Banking Platform functionalit
 - [Advanced Topics](#advanced-topics)
   - [Plugin Dependency Management](#plugin-dependency-management)
   - [Hot Deployment](#hot-deployment)
+  - [Plugin Health Monitoring](#plugin-health-monitoring)
+  - [Plugin Testing](#plugin-testing)
+  - [Internationalization](#internationalization)
+- [Examples](#examples)
+  - [Example 1: Credit Card Payment Plugin](#example-1-credit-card-payment-plugin)
+  - [Example 2: Machine Learning Fraud Detection](#example-2-machine-learning-fraud-detection)
+  - [Example 3: Company Information Enrichment](#example-3-company-information-enrichment)
+- [Implementation Status](#implementation-status)
+  - [Implemented Features](#implemented-features)
+  - [Planned Features](#planned-features)
+- [Advanced Topics](#advanced-topics)
+  - [Plugin Dependency Management](#plugin-dependency-management)
+  - [Hot Deployment](#hot-deployment)
   - [Plugin Versioning and Compatibility](#plugin-versioning-and-compatibility)
   - [Plugin Health Monitoring](#plugin-health-monitoring)
+  - [Plugin Debugging](#plugin-debugging)
   - [Plugin Testing Framework](#plugin-testing-framework)
 - [Complete Example: Microservice Extension Point and Plugin Implementation](#complete-example-microservice-extension-point-and-plugin-implementation)
 
@@ -1394,53 +1408,85 @@ Each plugin runs in its own isolated class loader, which provides several securi
 - **Dependency Isolation**: Allows plugins to use different versions of the same library without conflicts
 - **Controlled Access**: Restricts which core system classes plugins can access
 - **Unloading**: Enables complete unloading of plugin classes when they are no longer needed
+- **Package Export/Import**: Allows controlled sharing of classes between plugins
 
-The `PluginClassLoader` implements this isolation:
+The enhanced `PluginClassLoader` implements this isolation:
 
 ```java
 public class PluginClassLoader extends URLClassLoader {
     private final Set<String> allowedPackages;
+    private final String pluginId;
+    private final Set<String> exportedPackages;
+    private final ConcurrentHashMap<String, Class<?>> loadedPluginClasses;
+    private final ProtectionDomain protectionDomain;
 
-    public PluginClassLoader(URL[] urls, ClassLoader parent) {
+    public PluginClassLoader(String pluginId, URL[] urls, ClassLoader parent,
+                            Collection<String> allowedPackages, ProtectionDomain protectionDomain) {
         super(urls, parent);
+        this.pluginId = pluginId;
         this.allowedPackages = new HashSet<>();
+        this.exportedPackages = new HashSet<>();
+        this.loadedPluginClasses = new ConcurrentHashMap<>();
+        this.protectionDomain = protectionDomain;
 
-        // Allow core plugin API packages
-        allowedPackages.add("com.catalis.core.plugin.api");
-        // ...
+        // Add default allowed packages
+        addDefaultAllowedPackages();
+
+        // Add additional allowed packages
+        if (allowedPackages != null) {
+            this.allowedPackages.addAll(allowedPackages);
+        }
     }
 
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
-        // Check if the class has already been loaded
-        Class<?> loadedClass = findLoadedClass(name);
-        if (loadedClass != null) {
-            return loadedClass;
-        }
+        synchronized (getClassLoadingLock(name)) {
+            // First, check if the class has already been loaded by this class loader
+            Class<?> loadedClass = findLoadedClass(name);
+            if (loadedClass != null) {
+                if (resolve) {
+                    resolveClass(loadedClass);
+                }
+                return loadedClass;
+            }
 
-        // Check if the class is from an allowed package
-        boolean isAllowed = allowedPackages.stream()
-                .anyMatch(name::startsWith);
+            // Check if the class is from an allowed package
+            boolean isAllowed = isPackageAllowed(name);
 
-        if (isAllowed) {
-            // Delegate to parent class loader for allowed packages
+            if (isAllowed) {
+                // Delegate to parent class loader for allowed packages
+                try {
+                    Class<?> parentClass = getParent().loadClass(name);
+                    if (resolve) {
+                        resolveClass(parentClass);
+                    }
+                    return parentClass;
+                } catch (ClassNotFoundException e) {
+                    // Fall through to try loading from plugin
+                }
+            }
+
             try {
-                return super.loadClass(name, resolve);
-            } catch (ClassNotFoundException e) {
-                // Fall through to try loading from plugin
-            }
-        }
+                // Try to load the class from the plugin
+                Class<?> pluginClass = findClass(name);
+                if (resolve) {
+                    resolveClass(pluginClass);
+                }
 
-        // Try to load the class from the plugin
-        try {
-            Class<?> pluginClass = findClass(name);
-            if (resolve) {
-                resolveClass(pluginClass);
+                // Cache the loaded class
+                loadedPluginClasses.put(name, pluginClass);
+
+                return pluginClass;
+            } catch (ClassNotFoundException e) {
+                // If not allowed and not found in plugin, throw exception
+                if (!isAllowed) {
+                    logger.warn("Plugin {} attempted to access unauthorized class: {}", pluginId, name);
+                    throw new SecurityException("Access to class " + name + " is not allowed for plugin " + pluginId);
+                }
+
+                // If allowed but not found anywhere, throw the original exception
+                throw e;
             }
-            return pluginClass;
-        } catch (ClassNotFoundException e) {
-            // If not found in plugin, delegate to parent
-            return super.loadClass(name, resolve);
         }
     }
 }
@@ -1448,7 +1494,7 @@ public class PluginClassLoader extends URLClassLoader {
 
 ### Permission System
 
-The plugin manager implements a fine-grained permission system that controls what operations plugins can perform:
+The plugin manager implements a fine-grained permission system that controls what operations plugins can perform. This is implemented through the `PluginSecurityManager` and `PluginPermission` classes:
 
 - **File System Access**: Controls which directories plugins can read from or write to
 - **Network Access**: Restricts which hosts and ports plugins can connect to
@@ -1456,11 +1502,58 @@ The plugin manager implements a fine-grained permission system that controls wha
 - **Reflection**: Limits reflective access to system classes
 - **Thread Creation**: Controls whether and how plugins can create threads
 - **Native Code**: Prevents plugins from loading native libraries unless explicitly allowed
+- **Execute**: Controls execution of external commands
+
+The `PluginPermission` class represents a permission that can be granted to a plugin:
+
+```java
+public class PluginPermission implements Serializable {
+    public enum Type {
+        FILE_SYSTEM,
+        NETWORK,
+        SYSTEM_PROPERTIES,
+        REFLECTION,
+        THREAD,
+        NATIVE_CODE,
+        EXECUTE
+    }
+
+    private final Type type;
+    private final String target;
+    private final String action;
+
+    // Methods to check if one permission implies another
+    public boolean implies(PluginPermission other) {
+        if (other == null || !type.equals(other.type)) {
+            return false;
+        }
+
+        // If this permission has no target, it implies any target
+        if (target == null) {
+            return true;
+        }
+
+        // If this permission has a target, it must match or be a prefix of the other target
+        if (other.target == null || !other.target.startsWith(target)) {
+            return false;
+        }
+
+        // If this permission has no action, it implies any action
+        if (action == null) {
+            return true;
+        }
+
+        // If this permission has an action, the other must have the same action
+        return action.equals(other.action);
+    }
+}
+```
 
 Permissions can be configured at the system level and overridden for specific plugins:
 
 ```properties
 # Global permission settings
+firefly.plugin-manager.security.enforce-security-checks=true
 firefly.plugin-manager.security.allow-file-access=false
 firefly.plugin-manager.security.allow-network-access=true
 firefly.plugin-manager.security.allowed-hosts=api.payment-gateway.com,auth.payment-gateway.com
@@ -1472,54 +1565,131 @@ firefly.plugin-manager.security.plugins.com\.catalis\.banking\.credit-card-payme
 
 ### Signature Verification
 
-Plugins can be signed with digital certificates to verify their authenticity and integrity:
+Plugins can be signed with digital certificates to verify their authenticity and integrity. This is implemented through the `PluginSignatureVerifier` class:
 
 - **JAR Signing**: Plugins are distributed as signed JAR files
 - **Certificate Validation**: The plugin manager verifies the signature against trusted certificates
 - **Integrity Checking**: Ensures the plugin code hasn't been tampered with
 - **Trust Levels**: Different certificates can confer different levels of trust and permissions
 
-Signature verification is performed during plugin loading:
+The `PluginSignatureVerifier` class handles signature verification:
 
 ```java
-private void verifyPluginSignature(Path pluginPath) throws SecurityException {
-    try {
-        JarFile jarFile = new JarFile(pluginPath.toFile(), true);
-        Enumeration<JarEntry> entries = jarFile.entries();
+public class PluginSignatureVerifier {
+    private final Set<X509Certificate> trustedCertificates = new HashSet<>();
+    private final boolean requireSignature;
 
-        // Reading the entry forces signature verification
-        while (entries.hasMoreElements()) {
-            JarEntry entry = entries.nextElement();
-            if (!entry.isDirectory()) {
+    public PluginSignatureVerifier(boolean requireSignature) {
+        this.requireSignature = requireSignature;
+    }
+
+    public void addTrustedCertificate(X509Certificate certificate) {
+        trustedCertificates.add(certificate);
+    }
+
+    public void loadTrustedCertificate(Path certificatePath) throws CertificateException, IOException {
+        try (InputStream is = Files.newInputStream(certificatePath)) {
+            CertificateFactory cf = CertificateFactory.getInstance("X.509");
+            X509Certificate cert = (X509Certificate) cf.generateCertificate(is);
+            addTrustedCertificate(cert);
+        }
+    }
+
+    public boolean verifyPluginSignature(Path pluginPath) throws SecurityException {
+        try (JarFile jarFile = new JarFile(pluginPath.toFile(), true)) {
+            // Get the manifest
+            Manifest manifest = jarFile.getManifest();
+            if (manifest == null) {
+                if (requireSignature) {
+                    throw new SecurityException("Plugin JAR does not contain a manifest");
+                }
+                return false;
+            }
+
+            // Check all entries in the JAR file
+            Enumeration<JarEntry> entries = jarFile.entries();
+            List<X509Certificate> signerCertificates = new ArrayList<>();
+
+            while (entries.hasMoreElements()) {
+                JarEntry entry = entries.nextElement();
+
+                // Skip directories and the manifest itself
+                if (entry.isDirectory() || entry.getName().equals("META-INF/MANIFEST.MF")) {
+                    continue;
+                }
+
+                // Read the entry to verify its signature
                 try (InputStream is = jarFile.getInputStream(entry)) {
-                    // Read the entry to verify its signature
                     byte[] buffer = new byte[8192];
                     while (is.read(buffer) != -1) {
                         // Just read, don't need to do anything with the data
                     }
                 }
+
+                // Check if the entry is signed
+                CodeSigner[] signers = entry.getCodeSigners();
+                if (signers == null || signers.length == 0) {
+                    if (requireSignature) {
+                        throw new SecurityException("Unsigned entry in plugin JAR: " + entry.getName());
+                    }
+                    return false;
+                }
+
+                // Get the certificates from the first signer
+                for (Certificate cert : signers[0].getSignerCertPath().getCertificates()) {
+                    if (cert instanceof X509Certificate) {
+                        signerCertificates.add((X509Certificate) cert);
+                    }
+                }
             }
+
+            // Verify the certificates against the trusted certificates
+            if (!trustedCertificates.isEmpty()) {
+                boolean trusted = false;
+                for (X509Certificate signerCert : signerCertificates) {
+                    for (X509Certificate trustedCert : trustedCertificates) {
+                        if (signerCert.equals(trustedCert)) {
+                            trusted = true;
+                            break;
+                        }
+                    }
+                    if (trusted) {
+                        break;
+                    }
+                }
+
+                if (!trusted) {
+                    if (requireSignature) {
+                        throw new SecurityException("Plugin JAR is not signed with a trusted certificate");
+                    }
+                    return false;
+                }
+            }
+
+            return true;
+        } catch (IOException e) {
+            if (requireSignature) {
+                throw new SecurityException("Failed to verify plugin signature: " + e.getMessage(), e);
+            }
+            return false;
         }
-
-        // Check certificate chain
-        Certificate[] certificates = jarFile.getManifest().getMainAttributes().getSigningCertificates();
-        if (certificates == null || certificates.length == 0) {
-            throw new SecurityException("Plugin is not signed");
-        }
-
-        // Verify certificate against trusted certificates
-        X509Certificate pluginCert = (X509Certificate) certificates[0];
-        verifyCertificate(pluginCert);
-
-    } catch (Exception e) {
-        throw new SecurityException("Plugin signature verification failed: " + e.getMessage(), e);
     }
 }
 ```
 
+Signature verification can be configured in the application properties:
+
+```properties
+# Enable signature verification
+firefly.plugin-manager.security.require-signature=true
+
+# Configure trusted certificates directory
+firefly.plugin-manager.security.trusted-certificates-directory=/etc/firefly/certificates
+```
+
 ### Resource Limiting
 
-To prevent plugins from consuming excessive system resources, the plugin manager implements resource limiting:
+To prevent plugins from consuming excessive system resources, the plugin manager implements resource limiting through the `PluginResourceLimiter` class:
 
 - **Memory Usage**: Limits the amount of memory a plugin can allocate
 - **CPU Usage**: Restricts the CPU time a plugin can consume
@@ -1527,49 +1697,122 @@ To prevent plugins from consuming excessive system resources, the plugin manager
 - **File Handles**: Restricts the number of open file handles
 - **Network Connections**: Limits the number of concurrent network connections
 
+The `PluginResourceLimiter` class monitors and enforces resource limits:
+
+```java
+public class PluginResourceLimiter {
+    public static class ResourceLimits {
+        private final long maxMemoryBytes;
+        private final int maxThreads;
+        private final int maxCpuPercentage;
+        private final int maxFileHandles;
+        private final int maxNetworkConnections;
+
+        public ResourceLimits(long maxMemoryBytes, int maxThreads, int maxCpuPercentage,
+                             int maxFileHandles, int maxNetworkConnections) {
+            this.maxMemoryBytes = maxMemoryBytes;
+            this.maxThreads = maxThreads;
+            this.maxCpuPercentage = maxCpuPercentage;
+            this.maxFileHandles = maxFileHandles;
+            this.maxNetworkConnections = maxNetworkConnections;
+        }
+
+        // Default constructor with reasonable defaults
+        public ResourceLimits() {
+            this(256 * 1024 * 1024, 10, 25, 100, 20);
+        }
+    }
+
+    public static class ResourceUsage {
+        private final AtomicLong memoryBytes = new AtomicLong(0);
+        private final AtomicLong threadCount = new AtomicLong(0);
+        private final AtomicLong cpuTimeNanos = new AtomicLong(0);
+        private final AtomicLong fileHandles = new AtomicLong(0);
+        private final AtomicLong networkConnections = new AtomicLong(0);
+        private long lastCpuTimeNanos = 0;
+        private int cpuPercentage = 0;
+
+        // Methods to track and update resource usage
+    }
+
+    // Methods to register plugins, check resource limits, etc.
+    public boolean canAllocateMemory(String pluginId, long bytes) {
+        if (!enforceLimits) {
+            return true;
+        }
+
+        ResourceLimits limits = pluginLimits.get(pluginId);
+        ResourceUsage usage = pluginUsage.get(pluginId);
+
+        if (limits == null || usage == null) {
+            return false;
+        }
+
+        long currentMemory = usage.getMemoryBytes();
+        long maxMemory = limits.getMaxMemoryBytes();
+
+        return (currentMemory + bytes) <= maxMemory;
+    }
+
+    // Similar methods for other resources
+}
+```
+
 Resource limits can be configured globally or per plugin:
 
 ```properties
+# Enable resource limiting
+firefly.plugin-manager.resources.enforce-resource-limits=true
+
 # Global resource limits
 firefly.plugin-manager.resources.max-memory-mb=256
 firefly.plugin-manager.resources.max-cpu-percentage=25
 firefly.plugin-manager.resources.max-threads=10
+firefly.plugin-manager.resources.max-file-handles=100
+firefly.plugin-manager.resources.max-network-connections=20
 
 # Plugin-specific resource limits
 firefly.plugin-manager.resources.plugins.com\.catalis\.banking\.reporting.max-memory-mb=512
+firefly.plugin-manager.resources.plugins.com\.catalis\.banking\.reporting.max-cpu-percentage=50
 ```
 
 ### Sandboxing
 
-For maximum security, plugins can be run in a sandboxed environment:
+The combination of class loading isolation, permission system, and resource limiting creates a comprehensive sandbox environment for plugins. This sandbox restricts what plugins can do and prevents them from affecting the core system or other plugins.
 
-- **Process Isolation**: Runs plugins in separate JVM processes
-- **Container Isolation**: Uses containerization (e.g., Docker) for stronger isolation
-- **Security Manager**: Applies a custom SecurityManager to enforce permissions
-- **API Gateway**: Mediates all communication between plugins and the core system
+The sandbox features include:
 
-Sandboxing configuration example:
+- **Class Loading Isolation**: Prevents plugins from accessing or modifying classes they shouldn't have access to
+- **Permission System**: Controls what operations plugins can perform
+- **Resource Limiting**: Prevents plugins from consuming excessive system resources
+- **Signature Verification**: Ensures plugins come from trusted sources
 
-```properties
-firefly.plugin-manager.sandbox.enabled=true
-firefly.plugin-manager.sandbox.mode=PROCESS  # Options: CLASSLOADER, PROCESS, CONTAINER
-firefly.plugin-manager.sandbox.timeout-seconds=30
-```
+The sandbox is automatically applied to all plugins loaded by the plugin manager, with the level of restriction configurable through the properties described in the previous sections.
+
+Future enhancements may include:
+
+- **Process Isolation**: Running plugins in separate JVM processes
+- **Container Isolation**: Using containerization (e.g., Docker) for stronger isolation
+- **API Gateway**: Mediating all communication between plugins and the core system
 
 ### Security Best Practices
 
 When developing and deploying plugins, follow these security best practices:
 
 1. **Principle of Least Privilege**: Grant plugins only the permissions they absolutely need
-2. **Input Validation**: Validate all inputs from plugins before processing them
-3. **Output Sanitization**: Sanitize all outputs from plugins before displaying or using them
-4. **Secure Communication**: Use secure channels for communication between plugins and the core system
-5. **Regular Updates**: Keep the plugin manager and all plugins updated with security patches
-6. **Code Review**: Perform security code reviews of plugins before deployment
-7. **Vulnerability Scanning**: Regularly scan plugins for known vulnerabilities
-8. **Monitoring**: Monitor plugin behavior for anomalies that might indicate security issues
-9. **Audit Logging**: Maintain detailed logs of plugin activities for security auditing
-10. **Incident Response**: Have a plan for responding to security incidents involving plugins
+2. **Verify Signatures**: Enable signature verification and maintain a set of trusted certificates
+3. **Set Resource Limits**: Configure appropriate resource limits based on plugin requirements
+4. **Input Validation**: Validate all inputs from plugins before processing them
+5. **Output Sanitization**: Sanitize all outputs from plugins before displaying or using them
+6. **Secure Communication**: Use secure channels for communication between plugins and the core system
+7. **Regular Updates**: Keep the plugin manager and all plugins updated with security patches
+8. **Code Review**: Perform security code reviews of plugins before deployment
+9. **Vulnerability Scanning**: Regularly scan plugins for known vulnerabilities
+10. **Monitoring**: Monitor plugin behavior for anomalies that might indicate security issues
+11. **Audit Logging**: Maintain detailed logs of plugin activities for security auditing
+12. **Incident Response**: Have a plan for responding to security incidents involving plugins
+13. **Secure Configuration**: Protect configuration files that contain security settings
+14. **Emergency Shutdown**: Have a plan for quickly disabling problematic plugins
 
 ## Advanced Topics
 
@@ -1803,6 +2046,348 @@ The Firefly Plugin Manager includes a comprehensive health monitoring system:
 - **Resource Monitoring**: Monitors resource usage (CPU, memory, etc.)
 - **Deadlock Detection**: Detects thread deadlocks within plugins
 - **Automatic Recovery**: Can automatically restart failed plugins
+
+### Plugin Debugging
+
+The plugin manager includes a powerful debugging system that allows developers to debug plugins at runtime using the Java Debug Interface (JDI). This enables real-time debugging of plugins without requiring IDE integration or special build configurations.
+
+#### Key Features
+
+- **Interactive Debugging**: Debug plugins while they're running in production or development environments
+- **Breakpoint Management**: Set, remove, and manage breakpoints in plugin code
+- **Variable Inspection**: Inspect variable values during debugging sessions
+- **Step Execution**: Step through code line by line, into or out of methods
+- **Expression Evaluation**: Evaluate expressions in the context of the current execution point
+- **Stack Trace Analysis**: View and analyze the call stack during debugging
+
+#### Architecture
+
+The Plugin Debugger is built on the Java Debug Interface (JDI), which provides a high-level API for debugging Java applications. The architecture consists of the following components:
+
+```mermaid
+graph TD
+    A[Plugin Debugger API] --> B[DefaultPluginDebugger]
+    B --> C[DebuggerVMManager]
+    C --> D[DebuggerConnection]
+    D --> E[JDI - Java Debug Interface]
+    E --> F[Plugin JVM]
+    B --> G[DebugSession]
+    H[Event Bus] --> B
+    B --> H
+```
+
+- **PluginDebugger**: The main API for debugging plugins
+- **DefaultPluginDebugger**: The implementation of the PluginDebugger interface
+- **DebuggerVMManager**: Manages connections to plugin JVMs
+- **DebuggerConnection**: Handles the low-level JDI communication
+- **DebugSession**: Represents a debugging session for a specific plugin
+- **Event Bus**: Used for communication between the debugger and other components
+
+#### Configuration
+
+Debugging is disabled by default but can be enabled and configured through properties:
+
+```yaml
+firefly:
+  plugin-manager:
+    debugger:
+      enabled: true                   # Whether to enable the debugger
+      port: 8000                      # Port for the debugger server
+      remote-debugging-enabled: false # Whether to allow remote debugging
+      breakpoints-enabled: true       # Whether to enable breakpoints
+      variable-inspection-enabled: true # Whether to enable variable inspection
+      step-execution-enabled: true    # Whether to enable step-by-step execution
+      log-debug-events: true          # Whether to log debug events
+      max-concurrent-sessions: 5      # Maximum number of concurrent debug sessions
+      session-timeout-ms: 3600000     # Session timeout (1 hour)
+```
+
+#### JVM Configuration for Plugins
+
+To enable debugging for a plugin, the plugin's JVM must be started with the following JVM arguments:
+
+```
+-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8000
+```
+
+This can be configured in the plugin's startup script or in the application properties:
+
+```yaml
+firefly:
+  plugin-manager:
+    jvm-args: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8000"
+```
+
+#### Using the Plugin Debugger API
+
+The Plugin Debugger provides a comprehensive API for debugging plugins:
+
+```java
+@RestController
+@RequestMapping("/api/plugins/debug")
+public class PluginDebugController {
+
+    private final PluginDebugger debugger;
+
+    @Autowired
+    public PluginDebugController(PluginDebugger debugger) {
+        this.debugger = debugger;
+    }
+
+    // Start a debug session for a plugin
+    @PostMapping("/{pluginId}/sessions")
+    public Mono<String> startDebugSession(@PathVariable String pluginId) {
+        return debugger.startDebugSession(pluginId);
+    }
+
+    // Stop a debug session
+    @DeleteMapping("/sessions/{sessionId}")
+    public Mono<Void> stopDebugSession(@PathVariable String sessionId) {
+        return debugger.stopDebugSession(sessionId);
+    }
+
+    // Set a breakpoint
+    @PostMapping("/sessions/{sessionId}/breakpoints")
+    public Mono<String> setBreakpoint(
+            @PathVariable String sessionId,
+            @RequestParam String className,
+            @RequestParam int lineNumber) {
+        return debugger.setBreakpoint(sessionId, className, lineNumber);
+    }
+
+    // Remove a breakpoint
+    @DeleteMapping("/sessions/{sessionId}/breakpoints/{breakpointId}")
+    public Mono<Void> removeBreakpoint(
+            @PathVariable String sessionId,
+            @PathVariable String breakpointId) {
+        return debugger.removeBreakpoint(sessionId, breakpointId);
+    }
+
+    // Get all breakpoints
+    @GetMapping("/sessions/{sessionId}/breakpoints")
+    public Flux<Map<String, Object>> getBreakpoints(@PathVariable String sessionId) {
+        return debugger.getBreakpoints(sessionId);
+    }
+
+    // Continue execution after a breakpoint
+    @PostMapping("/sessions/{sessionId}/continue")
+    public Mono<Void> continueExecution(@PathVariable String sessionId) {
+        return debugger.continueExecution(sessionId);
+    }
+
+    // Step over the current line
+    @PostMapping("/sessions/{sessionId}/step-over")
+    public Mono<Void> stepOver(@PathVariable String sessionId) {
+        return debugger.stepOver(sessionId);
+    }
+
+    // Step into a method
+    @PostMapping("/sessions/{sessionId}/step-into")
+    public Mono<Void> stepInto(@PathVariable String sessionId) {
+        return debugger.stepInto(sessionId);
+    }
+
+    // Step out of the current method
+    @PostMapping("/sessions/{sessionId}/step-out")
+    public Mono<Void> stepOut(@PathVariable String sessionId) {
+        return debugger.stepOut(sessionId);
+    }
+
+    // Get the value of a variable
+    @GetMapping("/sessions/{sessionId}/variables/{variableName}")
+    public Mono<Object> getVariableValue(
+            @PathVariable String sessionId,
+            @PathVariable String variableName) {
+        return debugger.getVariableValue(sessionId, variableName);
+    }
+
+    // Get all local variables
+    @GetMapping("/sessions/{sessionId}/variables")
+    public Flux<Map.Entry<String, Object>> getLocalVariables(@PathVariable String sessionId) {
+        return debugger.getLocalVariables(sessionId);
+    }
+
+    // Evaluate an expression
+    @PostMapping("/sessions/{sessionId}/evaluate")
+    public Mono<Object> evaluateExpression(
+            @PathVariable String sessionId,
+            @RequestParam String expression) {
+        return debugger.evaluateExpression(sessionId, expression);
+    }
+
+    // Get the stack trace
+    @GetMapping("/sessions/{sessionId}/stack-trace")
+    public Flux<Map<String, Object>> getStackTrace(@PathVariable String sessionId) {
+        return debugger.getStackTrace(sessionId);
+    }
+}
+```
+
+#### Debugging Events
+
+The Plugin Debugger publishes events to the event bus when debugging actions occur. These events can be subscribed to by other components to react to debugging actions:
+
+```java
+// Subscribe to debugging events
+eventBus.subscribe(PluginDebugEvent.class)
+        .filter(event -> event.getType() == Type.BREAKPOINT_HIT)
+        .subscribe(event -> {
+            logger.info("Breakpoint hit: {}", event.getMessage());
+            // React to the breakpoint hit
+        });
+```
+
+The following event types are available:
+
+- **BREAKPOINT_HIT**: A breakpoint was hit
+- **STEP_COMPLETED**: A step operation completed
+- **EXCEPTION_THROWN**: An exception was thrown
+- **SESSION_STARTED**: A debug session started
+- **SESSION_ENDED**: A debug session ended
+- **VARIABLE_INSPECTED**: A variable was inspected
+- **EXPRESSION_EVALUATED**: An expression was evaluated
+
+#### Security Considerations
+
+The Plugin Debugger provides powerful capabilities that should be used with caution:
+
+- **Access Control**: Restrict access to the debugging API to authorized users only
+- **Remote Debugging**: Disable remote debugging in production environments
+- **Firewall Rules**: Configure firewall rules to restrict access to debugging ports
+- **Sensitive Data**: Be careful when inspecting variables that may contain sensitive data
+- **Resource Usage**: Debugging can impact performance, so use it judiciously in production
+
+#### Best Practices
+
+- **Development Environment**: Use the Plugin Debugger primarily in development and testing environments
+- **Temporary Debugging**: Enable debugging temporarily for troubleshooting and disable it when not needed
+- **Logging**: Use logging alongside debugging for persistent troubleshooting information
+- **Session Management**: Always stop debug sessions when they are no longer needed
+- **Performance Impact**: Be aware of the performance impact of debugging, especially with many breakpoints
+- **Breakpoint Placement**: Place breakpoints strategically to minimize performance impact
+- **Secure Access**: Implement proper authentication and authorization for debugging endpoints
+- 
+```java
+    // Set a breakpoint
+    @PostMapping("/sessions/{sessionId}/breakpoints")
+    public Mono<String> setBreakpoint(
+            @PathVariable String sessionId,
+            @RequestParam String className,
+            @RequestParam int lineNumber) {
+        return debugger.setBreakpoint(sessionId, className, lineNumber);
+    }
+
+    // Remove a breakpoint
+    @DeleteMapping("/sessions/{sessionId}/breakpoints/{breakpointId}")
+    public Mono<Void> removeBreakpoint(
+            @PathVariable String sessionId,
+            @PathVariable String breakpointId) {
+        return debugger.removeBreakpoint(sessionId, breakpointId);
+    }
+
+    // Get all breakpoints
+    @GetMapping("/sessions/{sessionId}/breakpoints")
+    public Flux<Map<String, Object>> getBreakpoints(@PathVariable String sessionId) {
+        return debugger.getBreakpoints(sessionId);
+    }
+
+    // Continue execution after a breakpoint
+    @PostMapping("/sessions/{sessionId}/continue")
+    public Mono<Void> continueExecution(@PathVariable String sessionId) {
+        return debugger.continueExecution(sessionId);
+    }
+
+    // Step over the current line
+    @PostMapping("/sessions/{sessionId}/step-over")
+    public Mono<Void> stepOver(@PathVariable String sessionId) {
+        return debugger.stepOver(sessionId);
+    }
+
+    // Step into a method
+    @PostMapping("/sessions/{sessionId}/step-into")
+    public Mono<Void> stepInto(@PathVariable String sessionId) {
+        return debugger.stepInto(sessionId);
+    }
+
+    // Step out of the current method
+    @PostMapping("/sessions/{sessionId}/step-out")
+    public Mono<Void> stepOut(@PathVariable String sessionId) {
+        return debugger.stepOut(sessionId);
+    }
+
+    // Get the value of a variable
+    @GetMapping("/sessions/{sessionId}/variables/{variableName}")
+    public Mono<Object> getVariableValue(
+            @PathVariable String sessionId,
+            @PathVariable String variableName) {
+        return debugger.getVariableValue(sessionId, variableName);
+    }
+
+    // Get all local variables
+    @GetMapping("/sessions/{sessionId}/variables")
+    public Flux<Map.Entry<String, Object>> getLocalVariables(@PathVariable String sessionId) {
+        return debugger.getLocalVariables(sessionId);
+    }
+
+    // Evaluate an expression
+    @PostMapping("/sessions/{sessionId}/evaluate")
+    public Mono<Object> evaluateExpression(
+            @PathVariable String sessionId,
+            @RequestParam String expression) {
+        return debugger.evaluateExpression(sessionId, expression);
+    }
+
+    // Get the stack trace
+    @GetMapping("/sessions/{sessionId}/stack-trace")
+    public Flux<Map<String, Object>> getStackTrace(@PathVariable String sessionId) {
+        return debugger.getStackTrace(sessionId);
+    }
+}
+```
+
+#### Debugging Events
+
+The Plugin Debugger publishes events to the event bus when debugging actions occur. These events can be subscribed to by other components to react to debugging actions:
+
+```java
+// Subscribe to debugging events
+eventBus.subscribe(PluginDebugEvent.class)
+        .filter(event -> event.getType() == Type.BREAKPOINT_HIT)
+        .subscribe(event -> {
+            logger.info("Breakpoint hit: {}", event.getMessage());
+            // React to the breakpoint hit
+        });
+```
+
+The following event types are available:
+
+- **BREAKPOINT_HIT**: A breakpoint was hit
+- **STEP_COMPLETED**: A step operation completed
+- **EXCEPTION_THROWN**: An exception was thrown
+- **SESSION_STARTED**: A debug session started
+- **SESSION_ENDED**: A debug session ended
+- **VARIABLE_INSPECTED**: A variable was inspected
+- **EXPRESSION_EVALUATED**: An expression was evaluated
+
+#### Security Considerations
+
+The Plugin Debugger provides powerful capabilities that should be used with caution:
+
+- **Access Control**: Restrict access to the debugging API to authorized users only
+- **Remote Debugging**: Disable remote debugging in production environments
+- **Firewall Rules**: Configure firewall rules to restrict access to debugging ports
+- **Sensitive Data**: Be careful when inspecting variables that may contain sensitive data
+- **Resource Usage**: Debugging can impact performance, so use it judiciously in production
+
+#### Best Practices
+
+- **Development Environment**: Use the Plugin Debugger primarily in development and testing environments
+- **Temporary Debugging**: Enable debugging temporarily for troubleshooting and disable it when not needed
+- **Logging**: Use logging alongside debugging for persistent troubleshooting information
+- **Session Management**: Always stop debug sessions when they are no longer needed
+- **Performance Impact**: Be aware of the performance impact of debugging, especially with many breakpoints
+- **Breakpoint Placement**: Place breakpoints strategically to minimize performance impact
+- **Secure Access**: Implement proper authentication and authorization for debugging endpoints
 
 Example health check implementation:
 
@@ -2379,3 +2964,83 @@ public class AccountService {
 10. **Response**: The enriched account is returned to the controller, mapped to a response DTO, and sent back to the client.
 
 This flow demonstrates how the plugin system enables the core microservice to be extended with additional functionality (company information enrichment) without modifying its core code. The extension point provides a clear contract, and the Plugin Manager handles the discovery and execution of extensions, creating a flexible, modular system.
+
+## Implementation Status
+
+The Firefly Plugin Manager implementation is progressing well, with several key features already implemented and others planned for future development.
+
+### Implemented Features
+
+#### Core Plugin System
+- ✅ Plugin interfaces and base classes
+- ✅ Plugin metadata and descriptor models
+- ✅ Plugin lifecycle management (installation, initialization, starting, stopping, uninstallation)
+- ✅ Plugin state tracking
+- ✅ Plugin configuration management
+
+#### Extension System
+- ✅ Extension point interfaces
+- ✅ Extension registration and discovery
+- ✅ Extension filtering and prioritization
+
+#### Plugin Loading
+- ✅ JAR file loading (DefaultPluginLoader)
+- ✅ Git repository loading (GitPluginLoader)
+- ✅ Classpath auto-detection (ClasspathPluginLoader)
+- ✅ Composite loader that delegates to specialized loaders (CompositePluginLoader)
+
+#### Event System
+- ✅ In-memory event bus (DefaultPluginEventBus)
+- ✅ Kafka event bus (KafkaPluginEventBus)
+- ✅ Event serialization for Kafka (PluginEventSerializer)
+- ✅ Event model classes (PluginEvent, PluginLifecycleEvent, PluginConfigurationEvent)
+
+#### Security Features
+- ✅ Enhanced class loading isolation (PluginClassLoader)
+- ✅ Permission system for controlling plugin access (PluginSecurityManager, PluginPermission)
+- ✅ Resource limiting for plugins (PluginResourceLimiter)
+- ✅ Signature verification for plugins (PluginSignatureVerifier)
+
+#### Configuration
+- ✅ Properties for plugin directory, auto-start, scan-on-startup
+- ✅ Event bus configuration (in-memory vs Kafka)
+- ✅ Kafka-specific configuration (bootstrap servers, topics, etc.)
+- ✅ Security configuration (permissions, resource limits, etc.)
+- ✅ Auto-configuration via Spring Boot
+
+### Planned Features
+
+#### Hot Deployment
+- ✅ Directory watching for automatic plugin detection
+- ✅ Handling plugin updates without restart
+
+#### Plugin Dependency Management
+- ⏳ Dependency resolution and validation
+- ⏳ Version constraint checking
+- ⏳ Circular dependency detection
+
+#### Plugin Health Monitoring
+- ✅ Health checks for plugins
+- ✅ Resource usage monitoring
+- ✅ Automatic recovery for failed plugins
+
+#### Plugin Debugging
+- ✅ Interactive debugging of plugins using Java Debug Interface (JDI)
+- ✅ Breakpoint management with real-time breakpoint hit detection
+- ✅ Variable inspection and modification
+- ✅ Step-by-step execution (step over, step into, step out)
+- ✅ Expression evaluation in the context of the current execution point
+- ✅ Stack trace inspection with source code information
+- ✅ Event-based debugging notifications via the event bus
+
+#### Plugin Testing Framework
+- ⏳ Mock plugin manager for unit testing
+- ⏳ Test harness for integration testing
+
+#### Documentation and Examples
+- ⏳ Example plugins for different use cases
+- ⏳ Comprehensive documentation for plugin developers
+
+Legend:
+- ✅ Implemented
+- ⏳ Planned

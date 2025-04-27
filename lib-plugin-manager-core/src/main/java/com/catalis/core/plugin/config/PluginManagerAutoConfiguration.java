@@ -2,16 +2,24 @@ package com.catalis.core.plugin.config;
 
 import com.catalis.core.plugin.DefaultPluginManager;
 import com.catalis.core.plugin.api.ExtensionRegistry;
+import com.catalis.core.plugin.api.PluginDebugger;
 import com.catalis.core.plugin.api.PluginManager;
 import com.catalis.core.plugin.api.PluginRegistry;
+import com.catalis.core.plugin.debug.DefaultPluginDebugger;
 import com.catalis.core.plugin.event.DefaultPluginEventBus;
 import com.catalis.core.plugin.event.KafkaPluginEventBus;
 import com.catalis.core.plugin.event.PluginEventBus;
 import com.catalis.core.plugin.event.PluginEventSerializer;
 import com.catalis.core.plugin.extension.DefaultExtensionRegistry;
+import com.catalis.core.plugin.health.PluginHealthMonitor;
+import com.catalis.core.plugin.hotdeploy.PluginDirectoryWatcher;
 import com.catalis.core.plugin.loader.DefaultPluginLoader;
 import com.catalis.core.plugin.loader.PluginLoader;
 import com.catalis.core.plugin.registry.DefaultPluginRegistry;
+import com.catalis.core.plugin.security.PluginClassLoader;
+import com.catalis.core.plugin.security.PluginResourceLimiter;
+import com.catalis.core.plugin.security.PluginSecurityManager;
+import com.catalis.core.plugin.security.PluginSignatureVerifier;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -119,6 +127,42 @@ public class PluginManagerAutoConfiguration {
     }
 
     /**
+     * Creates a plugin security manager bean if one doesn't exist.
+     *
+     * @param properties the plugin manager properties
+     * @return the plugin security manager
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public PluginSecurityManager pluginSecurityManager(PluginManagerProperties properties) {
+        return new PluginSecurityManager(properties.getSecurity().isEnforceSecurityChecks());
+    }
+
+    /**
+     * Creates a plugin resource limiter bean if one doesn't exist.
+     *
+     * @param properties the plugin manager properties
+     * @return the plugin resource limiter
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public PluginResourceLimiter pluginResourceLimiter(PluginManagerProperties properties) {
+        return new PluginResourceLimiter(properties.getResources().isEnforceResourceLimits());
+    }
+
+    /**
+     * Creates a plugin signature verifier bean if one doesn't exist.
+     *
+     * @param properties the plugin manager properties
+     * @return the plugin signature verifier
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public PluginSignatureVerifier pluginSignatureVerifier(PluginManagerProperties properties) {
+        return new PluginSignatureVerifier(properties.getSecurity().isRequireSignature());
+    }
+
+    /**
      * Creates a plugin manager bean if one doesn't exist.
      *
      * @param pluginRegistry the plugin registry
@@ -135,5 +179,57 @@ public class PluginManagerAutoConfiguration {
             PluginEventBus eventBus,
             PluginLoader pluginLoader) {
         return new DefaultPluginManager(pluginRegistry, extensionRegistry, eventBus, pluginLoader);
+    }
+
+    /**
+     * Creates a plugin directory watcher bean if one doesn't exist and hot deployment is enabled.
+     *
+     * @param pluginManager the plugin manager
+     * @param properties the plugin manager properties
+     * @return the plugin directory watcher
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "firefly.plugin-manager.hot-deployment", name = "enabled", havingValue = "true")
+    public PluginDirectoryWatcher pluginDirectoryWatcher(
+            PluginManager pluginManager,
+            PluginManagerProperties properties) {
+        return new PluginDirectoryWatcher(pluginManager, properties);
+    }
+
+    /**
+     * Creates a plugin health monitor bean if one doesn't exist and health monitoring is enabled.
+     *
+     * @param pluginManager the plugin manager
+     * @param eventBus the plugin event bus
+     * @param properties the plugin manager properties
+     * @return the plugin health monitor
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "firefly.plugin-manager.health", name = "enabled", havingValue = "true", matchIfMissing = true)
+    public PluginHealthMonitor pluginHealthMonitor(
+            PluginManager pluginManager,
+            PluginEventBus eventBus,
+            PluginManagerProperties properties) {
+        return new PluginHealthMonitor(pluginManager, eventBus, properties);
+    }
+
+    /**
+     * Creates a plugin debugger bean if one doesn't exist and debugging is enabled.
+     *
+     * @param pluginManager the plugin manager
+     * @param eventBus the plugin event bus
+     * @param properties the plugin manager properties
+     * @return the plugin debugger
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(prefix = "firefly.plugin-manager.debugger", name = "enabled", havingValue = "true")
+    public PluginDebugger pluginDebugger(
+            PluginManager pluginManager,
+            PluginEventBus eventBus,
+            PluginManagerProperties properties) {
+        return new DefaultPluginDebugger(pluginManager, eventBus, properties);
     }
 }
