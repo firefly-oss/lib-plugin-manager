@@ -17,16 +17,16 @@ import java.nio.file.Path;
 @Component
 @Primary
 public class CompositePluginLoader implements PluginLoader {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(CompositePluginLoader.class);
-    
+
     private final DefaultPluginLoader defaultPluginLoader;
     private final GitPluginLoader gitPluginLoader;
     private final ClasspathPluginLoader classpathPluginLoader;
-    
+
     /**
      * Creates a new CompositePluginLoader.
-     * 
+     *
      * @param defaultPluginLoader the default plugin loader for JAR files
      * @param gitPluginLoader the Git plugin loader
      * @param classpathPluginLoader the classpath plugin loader
@@ -39,22 +39,34 @@ public class CompositePluginLoader implements PluginLoader {
         this.gitPluginLoader = gitPluginLoader;
         this.classpathPluginLoader = classpathPluginLoader;
     }
-    
+
     @Override
     public Mono<Plugin> loadPlugin(Path pluginPath) {
         logger.info("Loading plugin from path: {}", pluginPath);
         return defaultPluginLoader.loadPlugin(pluginPath);
     }
-    
+
     @Override
     public Mono<Plugin> loadPluginFromGit(URI repositoryUri, String branch) {
         logger.info("Loading plugin from Git repository: {}, branch: {}", repositoryUri, branch);
         return gitPluginLoader.loadPluginFromGit(repositoryUri, branch);
     }
-    
+
     @Override
     public Flux<Plugin> loadPluginsFromClasspath(String basePackage) {
         logger.info("Loading plugins from classpath, base package: {}", basePackage);
         return classpathPluginLoader.loadPluginsFromClasspath(basePackage);
+    }
+
+    @Override
+    public Mono<Plugin> loadPluginFromGit(URI repositoryUri) {
+        logger.info("Loading plugin from Git repository: {}", repositoryUri);
+        return gitPluginLoader.loadPluginFromGit(repositoryUri);
+    }
+
+    @Override
+    public Flux<Plugin> loadPluginsFromClasspath() {
+        logger.info("Loading plugins from classpath");
+        return classpathPluginLoader.loadPluginsFromClasspath();
     }
 }

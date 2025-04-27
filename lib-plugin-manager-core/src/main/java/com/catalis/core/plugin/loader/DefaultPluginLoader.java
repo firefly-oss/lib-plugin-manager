@@ -6,9 +6,11 @@ import com.catalis.core.plugin.security.PluginClassLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Path;
@@ -25,13 +27,13 @@ import java.util.jar.Manifest;
  */
 @Component
 public class DefaultPluginLoader implements PluginLoader {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(DefaultPluginLoader.class);
-    
+
     @Override
     public Mono<com.catalis.core.plugin.api.Plugin> loadPlugin(Path pluginPath) {
         logger.info("Loading plugin from path: {}", pluginPath);
-        
+
         return Mono.fromCallable(() -> {
             try {
                 // Create a class loader for the plugin
@@ -39,18 +41,18 @@ public class DefaultPluginLoader implements PluginLoader {
                 PluginClassLoader classLoader = new PluginClassLoader(
                         new URL[]{pluginUrl},
                         getClass().getClassLoader());
-                
+
                 // Look for plugin classes using ServiceLoader
                 ServiceLoader<com.catalis.core.plugin.api.Plugin> serviceLoader =
                         ServiceLoader.load(com.catalis.core.plugin.api.Plugin.class, classLoader);
-                
+
                 com.catalis.core.plugin.api.Plugin pluginInstance = serviceLoader.findFirst()
                         .orElseThrow(() -> new IllegalStateException(
                                 "No plugin implementation found in " + pluginPath));
-                
+
                 // Validate plugin metadata
                 validatePluginMetadata(pluginInstance.getMetadata());
-                
+
                 return pluginInstance;
             } catch (Exception e) {
                 logger.error("Error loading plugin from {}: {}", pluginPath, e.getMessage(), e);
@@ -58,24 +60,46 @@ public class DefaultPluginLoader implements PluginLoader {
             }
         });
     }
-    
+
+    @Override
+    public Mono<com.catalis.core.plugin.api.Plugin> loadPluginFromGit(URI repositoryUri, String branch) {
+        logger.error("Git repository plugin loading is not supported by this loader");
+        return Mono.error(new UnsupportedOperationException("Git repository plugin loading is not supported by this loader"));
+    }
+
+    @Override
+    public Mono<com.catalis.core.plugin.api.Plugin> loadPluginFromGit(URI repositoryUri) {
+        return loadPluginFromGit(repositoryUri, null);
+    }
+
+    @Override
+    public Flux<com.catalis.core.plugin.api.Plugin> loadPluginsFromClasspath(String basePackage) {
+        logger.error("Classpath plugin loading is not supported by this loader. Use ClasspathPluginLoader instead.");
+        return Flux.error(new UnsupportedOperationException("Classpath plugin loading is not supported by this loader. Use ClasspathPluginLoader instead."));
+    }
+
+    @Override
+    public Flux<com.catalis.core.plugin.api.Plugin> loadPluginsFromClasspath() {
+        return loadPluginsFromClasspath(null);
+    }
+
     private void validatePluginMetadata(PluginMetadata metadata) {
         if (metadata.id() == null || metadata.id().isBlank()) {
             throw new IllegalArgumentException("Plugin ID cannot be null or blank");
         }
-        
+
         if (metadata.name() == null || metadata.name().isBlank()) {
             throw new IllegalArgumentException("Plugin name cannot be null or blank");
         }
-        
+
         if (metadata.version() == null || metadata.version().isBlank()) {
             throw new IllegalArgumentException("Plugin version cannot be null or blank");
         }
     }
-    
+
     /**
      * Extracts plugin metadata from a plugin class.
-     * 
+     *
      * @param pluginClass the plugin class
      * @param pluginPath the path to the plugin JAR file
      * @return the plugin metadata
@@ -85,9 +109,9 @@ public class DefaultPluginLoader implements PluginLoader {
         if (annotation == null) {
             throw new IllegalArgumentException("Plugin class does not have @Plugin annotation");
         }
-        
+
         Set<String> dependencies = new HashSet<>(Arrays.asList(annotation.dependencies()));
-        
+
         return PluginMetadata.builder()
                 .id(annotation.id())
                 .name(annotation.name())

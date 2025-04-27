@@ -1,7 +1,5 @@
 package com.catalis.core.plugin.loader;
 
-import com.catalis.core.plugin.annotation.Plugin;
-import com.catalis.core.plugin.api.Plugin;
 import com.catalis.core.plugin.model.PluginMetadata;
 import com.catalis.core.plugin.spi.AbstractPlugin;
 import org.slf4j.Logger;
@@ -13,6 +11,8 @@ import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.net.URI;
 
 import java.lang.reflect.Constructor;
 import java.nio.file.Path;
@@ -26,14 +26,14 @@ import java.util.Set;
  */
 @Component
 public class ClasspathPluginLoader implements PluginLoader {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(ClasspathPluginLoader.class);
     private final ApplicationContext applicationContext;
     private final DefaultPluginLoader defaultPluginLoader;
-    
+
     /**
      * Creates a new ClasspathPluginLoader.
-     * 
+     *
      * @param applicationContext the Spring application context
      * @param defaultPluginLoader the default plugin loader to delegate to for JAR loading
      */
@@ -41,23 +41,23 @@ public class ClasspathPluginLoader implements PluginLoader {
         this.applicationContext = applicationContext;
         this.defaultPluginLoader = defaultPluginLoader;
     }
-    
+
     @Override
     public Mono<com.catalis.core.plugin.api.Plugin> loadPlugin(Path pluginPath) {
         // Delegate to the default plugin loader
         return defaultPluginLoader.loadPlugin(pluginPath);
     }
-    
+
     @Override
     public Flux<com.catalis.core.plugin.api.Plugin> loadPluginsFromClasspath(String basePackage) {
         logger.info("Scanning classpath for plugins in package: {}", basePackage != null ? basePackage : "all packages");
-        
+
         return Flux.defer(() -> {
             try {
                 // Create a scanner that looks for @Plugin annotations
                 ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
                 scanner.addIncludeFilter(new AnnotationTypeFilter(com.catalis.core.plugin.annotation.Plugin.class));
-                
+
                 // Scan for classes with @Plugin annotation
                 Set<BeanDefinition> beanDefinitions;
                 if (basePackage != null && !basePackage.isEmpty()) {
@@ -70,36 +70,36 @@ public class ClasspathPluginLoader implements PluginLoader {
                     beanDefinitions.addAll(scanner.findCandidateComponents("net"));
                     beanDefinitions.addAll(scanner.findCandidateComponents("io"));
                 }
-                
+
                 // Process each found class
                 return Flux.fromIterable(beanDefinitions)
                         .flatMap(beanDefinition -> {
                             try {
                                 String className = beanDefinition.getBeanClassName();
                                 logger.info("Found plugin class: {}", className);
-                                
+
                                 // Load the class
                                 Class<?> pluginClass = Class.forName(className);
-                                
+
                                 // Check if it's a Plugin implementation
                                 if (com.catalis.core.plugin.api.Plugin.class.isAssignableFrom(pluginClass)) {
                                     // Try to get from Spring context first
                                     try {
                                         @SuppressWarnings("unchecked")
-                                        Class<? extends com.catalis.core.plugin.api.Plugin> pluginImplClass = 
+                                        Class<? extends com.catalis.core.plugin.api.Plugin> pluginImplClass =
                                                 (Class<? extends com.catalis.core.plugin.api.Plugin>) pluginClass;
-                                        
+
                                         com.catalis.core.plugin.api.Plugin plugin = applicationContext.getBean(pluginImplClass);
                                         return Mono.just(plugin);
                                     } catch (Exception e) {
                                         logger.debug("Plugin not found in Spring context, creating new instance: {}", className);
-                                        
+
                                         // Create a new instance
                                         @SuppressWarnings("unchecked")
-                                        com.catalis.core.plugin.api.Plugin plugin = 
+                                        com.catalis.core.plugin.api.Plugin plugin =
                                                 ((Class<? extends com.catalis.core.plugin.api.Plugin>) pluginClass)
                                                 .getDeclaredConstructor().newInstance();
-                                        
+
                                         return Mono.just(plugin);
                                     }
                                 } else {
@@ -118,10 +118,26 @@ public class ClasspathPluginLoader implements PluginLoader {
             }
         });
     }
-    
+
+    @Override
+    public Flux<com.catalis.core.plugin.api.Plugin> loadPluginsFromClasspath() {
+        return loadPluginsFromClasspath(null);
+    }
+
+    @Override
+    public Mono<com.catalis.core.plugin.api.Plugin> loadPluginFromGit(URI repositoryUri, String branch) {
+        logger.error("Git repository plugin loading is not supported by this loader. Use GitPluginLoader instead.");
+        return Mono.error(new UnsupportedOperationException("Git repository plugin loading is not supported by this loader. Use GitPluginLoader instead."));
+    }
+
+    @Override
+    public Mono<com.catalis.core.plugin.api.Plugin> loadPluginFromGit(URI repositoryUri) {
+        return loadPluginFromGit(repositoryUri, null);
+    }
+
     /**
      * Creates a wrapper plugin for a class that has the @Plugin annotation but doesn't implement the Plugin interface.
-     * 
+     *
      * @param pluginClass the class with @Plugin annotation
      * @return a Mono that emits the wrapper plugin
      */
@@ -132,7 +148,7 @@ public class ClasspathPluginLoader implements PluginLoader {
             if (annotation == null) {
                 return Mono.error(new IllegalArgumentException("Class does not have @Plugin annotation: " + pluginClass.getName()));
             }
-            
+
             // Create metadata from the annotation
             Set<String> dependencies = new HashSet<>(Arrays.asList(annotation.dependencies()));
             PluginMetadata metadata = PluginMetadata.builder()
@@ -146,7 +162,7 @@ public class ClasspathPluginLoader implements PluginLoader {
                     .dependencies(dependencies)
                     .installTime(Instant.now())
                     .build();
-            
+
             // Create an instance of the class
             Object instance;
             try {
@@ -158,7 +174,7 @@ public class ClasspathPluginLoader implements PluginLoader {
                 constructor.setAccessible(true);
                 instance = constructor.newInstance();
             }
-            
+
             // Create a wrapper plugin
             final Object finalInstance = instance;
             com.catalis.core.plugin.api.Plugin wrapperPlugin = new AbstractPlugin(metadata) {
@@ -182,7 +198,7 @@ public class ClasspathPluginLoader implements PluginLoader {
                         return Mono.error(e);
                     }
                 }
-                
+
                 @Override
                 public Mono<Void> start() {
                     logger.info("Starting wrapper plugin for: {}", pluginClass.getName());
@@ -203,7 +219,7 @@ public class ClasspathPluginLoader implements PluginLoader {
                         return Mono.error(e);
                     }
                 }
-                
+
                 @Override
                 public Mono<Void> stop() {
                     logger.info("Stopping wrapper plugin for: {}", pluginClass.getName());
@@ -224,7 +240,7 @@ public class ClasspathPluginLoader implements PluginLoader {
                         return Mono.error(e);
                     }
                 }
-                
+
                 @Override
                 public Mono<Void> uninstall() {
                     logger.info("Uninstalling wrapper plugin for: {}", pluginClass.getName());
@@ -246,7 +262,7 @@ public class ClasspathPluginLoader implements PluginLoader {
                     }
                 }
             };
-            
+
             return Mono.just(wrapperPlugin);
         } catch (Exception e) {
             logger.error("Failed to create wrapper plugin for class: {}", pluginClass.getName(), e);
