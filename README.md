@@ -1989,6 +1989,7 @@ public class CreditCardPaymentPluginIntegrationTest {
         assertEquals(PluginState.UNINSTALLED, testHarness.getPluginState(descriptor.metadata().id()));
     }
 }
+```
 
 ## Complete Example: Microservice Extension Point and Plugin Implementation
 
