@@ -3,6 +3,7 @@ package com.catalis.core.plugin;
 import com.catalis.core.plugin.api.ExtensionRegistry;
 import com.catalis.core.plugin.api.Plugin;
 import com.catalis.core.plugin.api.PluginRegistry;
+import com.catalis.core.plugin.dependency.PluginDependencyResolver;
 import com.catalis.core.plugin.event.PluginEventBus;
 import com.catalis.core.plugin.loader.PluginLoader;
 import com.catalis.core.plugin.model.PluginDescriptor;
@@ -20,11 +21,13 @@ import reactor.test.StepVerifier;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,6 +47,9 @@ public class DefaultPluginManagerTest {
     private PluginLoader pluginLoader;
 
     @Mock
+    private PluginDependencyResolver dependencyResolver;
+
+    @Mock
     private Plugin plugin;
 
     private DefaultPluginManager pluginManager;
@@ -52,7 +58,7 @@ public class DefaultPluginManagerTest {
 
     @BeforeEach
     void setUp() {
-        pluginManager = new DefaultPluginManager(pluginRegistry, extensionRegistry, eventBus, pluginLoader);
+        pluginManager = new DefaultPluginManager(pluginRegistry, extensionRegistry, eventBus, pluginLoader, dependencyResolver);
 
         metadata = PluginMetadata.builder()
                 .id("test-plugin")
@@ -116,8 +122,18 @@ public class DefaultPluginManagerTest {
 
     @Test
     void testStartPlugin() {
+        // Create a mock plugin descriptor
+        PluginDescriptor descriptor = mock(PluginDescriptor.class);
+        when(descriptor.getId()).thenReturn("test-plugin");
+        when(descriptor.state()).thenReturn(PluginState.INITIALIZED);
+
         // Mock plugin registry
+        when(pluginRegistry.getPluginDescriptor("test-plugin")).thenReturn(Mono.just(descriptor));
+        when(pluginRegistry.getAllPluginDescriptors()).thenReturn(Flux.just(descriptor));
         when(pluginRegistry.startPlugin("test-plugin")).thenReturn(Mono.empty());
+
+        // Mock dependency resolver
+        when(dependencyResolver.resolveDependencies(anyList())).thenReturn(List.of(descriptor));
 
         // Start the plugin
         StepVerifier.create(pluginManager.startPlugin("test-plugin"))
@@ -142,9 +158,19 @@ public class DefaultPluginManagerTest {
 
     @Test
     void testRestartPlugin() {
+        // Create a mock plugin descriptor
+        PluginDescriptor descriptor = mock(PluginDescriptor.class);
+        when(descriptor.getId()).thenReturn("test-plugin");
+        when(descriptor.state()).thenReturn(PluginState.INITIALIZED);
+
         // Mock plugin registry
+        when(pluginRegistry.getPluginDescriptor("test-plugin")).thenReturn(Mono.just(descriptor));
+        when(pluginRegistry.getAllPluginDescriptors()).thenReturn(Flux.just(descriptor));
         when(pluginRegistry.stopPlugin("test-plugin")).thenReturn(Mono.empty());
         when(pluginRegistry.startPlugin("test-plugin")).thenReturn(Mono.empty());
+
+        // Mock dependency resolver
+        when(dependencyResolver.resolveDependencies(anyList())).thenReturn(List.of(descriptor));
 
         // Restart the plugin
         StepVerifier.create(pluginManager.restartPlugin("test-plugin"))

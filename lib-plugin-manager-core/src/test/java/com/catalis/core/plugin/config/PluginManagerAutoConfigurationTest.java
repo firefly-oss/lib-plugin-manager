@@ -5,6 +5,7 @@ import com.catalis.core.plugin.api.ExtensionRegistry;
 import com.catalis.core.plugin.api.PluginDebugger;
 import com.catalis.core.plugin.api.PluginManager;
 import com.catalis.core.plugin.api.PluginRegistry;
+import com.catalis.core.plugin.dependency.PluginDependencyResolver;
 import com.catalis.core.plugin.event.DefaultPluginEventBus;
 import com.catalis.core.plugin.event.KafkaPluginEventBus;
 import com.catalis.core.plugin.event.PluginEventBus;
@@ -46,6 +47,7 @@ public class PluginManagerAutoConfigurationTest {
             assertThat(context).hasSingleBean(ExtensionRegistry.class);
             assertThat(context).hasSingleBean(PluginLoader.class);
             assertThat(context).hasSingleBean(PluginManager.class);
+            assertThat(context).hasSingleBean(PluginDependencyResolver.class);
 
             // Verify default implementations
             assertThat(context).getBean(PluginEventBus.class).isInstanceOf(DefaultPluginEventBus.class);
@@ -53,6 +55,7 @@ public class PluginManagerAutoConfigurationTest {
             assertThat(context).getBean(ExtensionRegistry.class).isInstanceOf(DefaultExtensionRegistry.class);
             assertThat(context).getBean(PluginLoader.class).isInstanceOf(DefaultPluginLoader.class);
             assertThat(context).getBean(PluginManager.class).isInstanceOf(DefaultPluginManager.class);
+            assertThat(context).getBean(PluginDependencyResolver.class).isInstanceOf(PluginDependencyResolver.class);
         });
     }
 
@@ -84,6 +87,7 @@ public class PluginManagerAutoConfigurationTest {
                     assertThat(context).hasSingleBean(PluginDirectoryWatcher.class);
                     assertThat(context).hasSingleBean(PluginHealthMonitor.class);
                     assertThat(context).hasSingleBean(PluginDebugger.class);
+                    assertThat(context).hasSingleBean(PluginDependencyResolver.class);
 
                     // Verify custom implementations
                     assertThat(context).getBean(PluginEventBus.class).isInstanceOf(CustomPluginEventBus.class);
@@ -97,6 +101,7 @@ public class PluginManagerAutoConfigurationTest {
                     assertThat(context).getBean(PluginDirectoryWatcher.class).isInstanceOf(CustomPluginDirectoryWatcher.class);
                     assertThat(context).getBean(PluginHealthMonitor.class).isInstanceOf(CustomPluginHealthMonitor.class);
                     assertThat(context).getBean(PluginDebugger.class).isInstanceOf(CustomPluginDebugger.class);
+                    assertThat(context).getBean(PluginDependencyResolver.class).isInstanceOf(CustomPluginDependencyResolver.class);
                 });
     }
 
@@ -512,6 +517,10 @@ public class PluginManagerAutoConfigurationTest {
         }
     }
 
+    static class CustomPluginDependencyResolver extends PluginDependencyResolver {
+        // Custom implementation for testing
+    }
+
     static class CustomPluginDebugger implements PluginDebugger {
         @Override
         public Mono<String> startDebugSession(String pluginId) {
@@ -654,6 +663,11 @@ public class PluginManagerAutoConfigurationTest {
         @Bean
         public PluginDebugger pluginDebugger() {
             return new CustomPluginDebugger();
+        }
+
+        @Bean
+        public PluginDependencyResolver pluginDependencyResolver() {
+            return new CustomPluginDependencyResolver();
         }
     }
 }

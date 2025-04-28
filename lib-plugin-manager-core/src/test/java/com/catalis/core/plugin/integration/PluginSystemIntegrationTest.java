@@ -3,6 +3,7 @@ package com.catalis.core.plugin.integration;
 import com.catalis.core.plugin.DefaultPluginManager;
 import com.catalis.core.plugin.api.Plugin;
 import com.catalis.core.plugin.api.PluginManager;
+import com.catalis.core.plugin.dependency.PluginDependencyResolver;
 import com.catalis.core.plugin.event.DefaultPluginEventBus;
 import com.catalis.core.plugin.event.PluginEventBus;
 import com.catalis.core.plugin.extension.DefaultExtensionRegistry;
@@ -28,6 +29,7 @@ public class PluginSystemIntegrationTest {
     private DefaultPluginRegistry pluginRegistry;
     private DefaultExtensionRegistry extensionRegistry;
     private DefaultPluginLoader pluginLoader;
+    private PluginDependencyResolver dependencyResolver;
     private PluginManager pluginManager;
 
     // Test extension point
@@ -53,7 +55,7 @@ public class PluginSystemIntegrationTest {
                     .dependencies(Set.of())
                     .installTime(Instant.now())
                     .build());
-            
+
             this.extension = new TestExtensionImpl();
         }
 
@@ -107,49 +109,50 @@ public class PluginSystemIntegrationTest {
         pluginRegistry = new DefaultPluginRegistry(eventBus);
         extensionRegistry = new DefaultExtensionRegistry();
         pluginLoader = new DefaultPluginLoader();
-        pluginManager = new DefaultPluginManager(pluginRegistry, extensionRegistry, eventBus, pluginLoader);
+        dependencyResolver = new PluginDependencyResolver();
+        pluginManager = new DefaultPluginManager(pluginRegistry, extensionRegistry, eventBus, pluginLoader, dependencyResolver);
     }
 
     @Test
     void testPluginLifecycle() {
         // Create a test plugin
         TestPlugin testPlugin = new TestPlugin();
-        
+
         // Register the plugin
         StepVerifier.create(pluginRegistry.registerPlugin(testPlugin))
                 .verifyComplete();
-        
+
         // Verify the plugin is initialized
         assertTrue(testPlugin.isInitialized());
-        
+
         // Verify the plugin state
         StepVerifier.create(pluginRegistry.getPluginDescriptor("test-plugin"))
                 .assertNext(descriptor -> {
                     assertEquals(PluginState.INITIALIZED, descriptor.state());
                 })
                 .verifyComplete();
-        
+
         // Start the plugin
         StepVerifier.create(pluginRegistry.startPlugin("test-plugin"))
                 .verifyComplete();
-        
+
         // Verify the plugin is started
         assertTrue(testPlugin.isStarted());
-        
+
         // Verify the plugin state
         StepVerifier.create(pluginRegistry.getPluginDescriptor("test-plugin"))
                 .assertNext(descriptor -> {
                     assertEquals(PluginState.STARTED, descriptor.state());
                 })
                 .verifyComplete();
-        
+
         // Stop the plugin
         StepVerifier.create(pluginRegistry.stopPlugin("test-plugin"))
                 .verifyComplete();
-        
+
         // Verify the plugin is stopped
         assertTrue(testPlugin.isStopped());
-        
+
         // Verify the plugin state
         StepVerifier.create(pluginRegistry.getPluginDescriptor("test-plugin"))
                 .assertNext(descriptor -> {
@@ -162,21 +165,21 @@ public class PluginSystemIntegrationTest {
     void testExtensionRegistryAndUsage() {
         // Create a test plugin
         TestPlugin testPlugin = new TestPlugin();
-        
+
         // Register the plugin
         StepVerifier.create(pluginRegistry.registerPlugin(testPlugin))
                 .verifyComplete();
-        
+
         // Register the extension point
         StepVerifier.create(extensionRegistry.registerExtensionPoint(
                 "test.extension-point", TestExtensionPoint.class))
                 .verifyComplete();
-        
+
         // Register the extension
         StepVerifier.create(extensionRegistry.registerExtension(
                 "test.extension-point", testPlugin.getExtension(), 100))
                 .verifyComplete();
-        
+
         // Get the extension
         StepVerifier.create(extensionRegistry.getHighestPriorityExtension("test.extension-point"))
                 .assertNext(extension -> {
@@ -184,7 +187,7 @@ public class PluginSystemIntegrationTest {
                     assertEquals("Test Extension", ((TestExtensionPoint) extension).getName());
                 })
                 .verifyComplete();
-        
+
         // Use the extension
         StepVerifier.create(extensionRegistry.<TestExtensionPoint>getHighestPriorityExtension("test.extension-point")
                 .flatMap(extension -> extension.performAction("test input")))
@@ -196,29 +199,29 @@ public class PluginSystemIntegrationTest {
     void testPluginManagerOperations() {
         // Create a test plugin
         TestPlugin testPlugin = new TestPlugin();
-        
+
         // Register the plugin using the plugin manager
         StepVerifier.create(pluginRegistry.registerPlugin(testPlugin))
                 .verifyComplete();
-        
+
         // Start the plugin using the plugin manager
         StepVerifier.create(pluginManager.startPlugin("test-plugin"))
                 .verifyComplete();
-        
+
         // Verify the plugin is started
         assertTrue(testPlugin.isStarted());
-        
+
         // Stop the plugin using the plugin manager
         StepVerifier.create(pluginManager.stopPlugin("test-plugin"))
                 .verifyComplete();
-        
+
         // Verify the plugin is stopped
         assertTrue(testPlugin.isStopped());
-        
+
         // Restart the plugin using the plugin manager
         StepVerifier.create(pluginManager.restartPlugin("test-plugin"))
                 .verifyComplete();
-        
+
         // Verify the plugin is started again
         assertTrue(testPlugin.isStarted());
     }
@@ -227,24 +230,24 @@ public class PluginSystemIntegrationTest {
     void testEventBusCommunication() {
         // Create a test plugin
         TestPlugin testPlugin = new TestPlugin();
-        
+
         // Register the plugin
         StepVerifier.create(pluginRegistry.registerPlugin(testPlugin))
                 .verifyComplete();
-        
+
         // Create a custom event
         TestEvent event = new TestEvent("test-plugin", "Hello from test!");
-        
+
         // Subscribe to events
         AtomicBoolean eventReceived = new AtomicBoolean(false);
         eventBus.subscribe(TestEvent.class)
                 .doOnNext(e -> eventReceived.set(true))
                 .subscribe();
-        
+
         // Publish the event
         StepVerifier.create(eventBus.publish(event))
                 .verifyComplete();
-        
+
         // Verify the event was received
         assertTrue(eventReceived.get());
     }

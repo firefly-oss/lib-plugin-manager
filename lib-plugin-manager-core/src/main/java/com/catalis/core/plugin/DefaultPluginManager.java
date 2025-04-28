@@ -4,9 +4,11 @@ import com.catalis.core.plugin.api.ExtensionRegistry;
 import com.catalis.core.plugin.api.Plugin;
 import com.catalis.core.plugin.api.PluginManager;
 import com.catalis.core.plugin.api.PluginRegistry;
+import com.catalis.core.plugin.dependency.PluginDependencyResolver;
 import com.catalis.core.plugin.event.PluginEventBus;
 import com.catalis.core.plugin.loader.PluginLoader;
 import com.catalis.core.plugin.model.PluginDescriptor;
+import com.catalis.core.plugin.model.PluginState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +18,9 @@ import reactor.core.publisher.Mono;
 
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Default implementation of the PluginManager interface.
@@ -30,6 +34,7 @@ public class DefaultPluginManager implements PluginManager {
     private final ExtensionRegistry extensionRegistry;
     private final PluginEventBus eventBus;
     private final PluginLoader pluginLoader;
+    private final PluginDependencyResolver dependencyResolver;
 
     /**
      * Creates a new DefaultPluginManager with the specified dependencies.
@@ -44,11 +49,13 @@ public class DefaultPluginManager implements PluginManager {
             PluginRegistry pluginRegistry,
             ExtensionRegistry extensionRegistry,
             PluginEventBus eventBus,
-            PluginLoader pluginLoader) {
+            PluginLoader pluginLoader,
+            PluginDependencyResolver dependencyResolver) {
         this.pluginRegistry = pluginRegistry;
         this.extensionRegistry = extensionRegistry;
         this.eventBus = eventBus;
         this.pluginLoader = pluginLoader;
+        this.dependencyResolver = dependencyResolver;
     }
 
     @Override
@@ -109,7 +116,45 @@ public class DefaultPluginManager implements PluginManager {
     @Override
     public Mono<Void> startPlugin(String pluginId) {
         logger.info("Starting plugin: {}", pluginId);
-        return pluginRegistry.startPlugin(pluginId);
+        return pluginRegistry.getPluginDescriptor(pluginId)
+                .flatMap(descriptor -> {
+                    // Get all plugins
+                    return pluginRegistry.getAllPluginDescriptors()
+                            .collectList()
+                            .flatMap(allPlugins -> {
+                                try {
+                                    // Resolve dependencies for this plugin
+                                    List<PluginDescriptor> dependencyOrder = dependencyResolver.resolveDependencies(allPlugins);
+
+                                    // Filter to include only this plugin and its dependencies
+                                    List<String> pluginsToStart = dependencyOrder.stream()
+                                            .map(PluginDescriptor::getId)
+                                            .takeWhile(id -> !id.equals(pluginId))
+                                            .collect(Collectors.toList());
+                                    pluginsToStart.add(pluginId);
+
+                                    logger.debug("Starting plugin {} and its dependencies: {}", pluginId, pluginsToStart);
+
+                                    // Start each plugin in dependency order
+                                    return Flux.fromIterable(pluginsToStart)
+                                            .concatMap(id -> {
+                                                // Only start plugins that aren't already started
+                                                return pluginRegistry.getPluginDescriptor(id)
+                                                        .filter(desc -> desc.state() != PluginState.STARTED)
+                                                        .flatMap(desc -> pluginRegistry.startPlugin(id))
+                                                        .onErrorResume(e -> {
+                                                            logger.error("Error starting dependency {} for plugin {}: {}",
+                                                                    id, pluginId, e.getMessage(), e);
+                                                            return Mono.empty();
+                                                        });
+                                            })
+                                            .then();
+                                } catch (Exception e) {
+                                    logger.error("Error resolving dependencies for plugin {}: {}", pluginId, e.getMessage(), e);
+                                    return Mono.error(e);
+                                }
+                            });
+                });
     }
 
     @Override
@@ -146,6 +191,46 @@ public class DefaultPluginManager implements PluginManager {
         logger.info("Initializing plugin manager");
         // Initialize all components
         return Mono.empty();
+    }
+
+    /**
+     * Starts all plugins in dependency order.
+     *
+     * @return a Mono that completes when all plugins have been started
+     */
+    public Mono<Void> startAllPlugins() {
+        logger.info("Starting all plugins in dependency order");
+        return pluginRegistry.getAllPluginDescriptors()
+                .collectList()
+                .flatMap(plugins -> {
+                    try {
+                        // Resolve dependencies for all plugins
+                        List<PluginDescriptor> dependencyOrder = dependencyResolver.resolveDependencies(plugins);
+                        logger.debug("Resolved dependency order: {}",
+                                dependencyOrder.stream().map(PluginDescriptor::getId).collect(Collectors.toList()));
+
+                        // Start each plugin in dependency order
+                        return Flux.fromIterable(dependencyOrder)
+                                .concatMap(plugin -> {
+                                    String id = plugin.getId();
+                                    // Only start plugins that aren't already started
+                                    return pluginRegistry.getPluginDescriptor(id)
+                                            .filter(desc -> desc.state() != PluginState.STARTED)
+                                            .flatMap(desc -> {
+                                                logger.info("Starting plugin {} in dependency order", id);
+                                                return pluginRegistry.startPlugin(id);
+                                            })
+                                            .onErrorResume(e -> {
+                                                logger.error("Error starting plugin {}: {}", id, e.getMessage(), e);
+                                                return Mono.empty();
+                                            });
+                                })
+                                .then();
+                    } catch (Exception e) {
+                        logger.error("Error resolving dependencies for all plugins: {}", e.getMessage(), e);
+                        return Mono.error(e);
+                    }
+                });
     }
 
     @Override

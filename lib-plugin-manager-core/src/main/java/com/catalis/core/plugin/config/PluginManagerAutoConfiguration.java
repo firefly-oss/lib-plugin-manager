@@ -5,6 +5,7 @@ import com.catalis.core.plugin.api.ExtensionRegistry;
 import com.catalis.core.plugin.api.PluginDebugger;
 import com.catalis.core.plugin.api.PluginManager;
 import com.catalis.core.plugin.api.PluginRegistry;
+import com.catalis.core.plugin.dependency.PluginDependencyResolver;
 import com.catalis.core.plugin.debug.DefaultPluginDebugger;
 import com.catalis.core.plugin.event.DefaultPluginEventBus;
 import com.catalis.core.plugin.event.KafkaPluginEventBus;
@@ -163,12 +164,24 @@ public class PluginManagerAutoConfiguration {
     }
 
     /**
+     * Creates a plugin dependency resolver bean if one doesn't exist.
+     *
+     * @return the plugin dependency resolver
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public PluginDependencyResolver pluginDependencyResolver() {
+        return new PluginDependencyResolver();
+    }
+
+    /**
      * Creates a plugin manager bean if one doesn't exist.
      *
      * @param pluginRegistry the plugin registry
      * @param extensionRegistry the extension registry
      * @param eventBus the plugin event bus
      * @param pluginLoader the plugin loader
+     * @param dependencyResolver the plugin dependency resolver
      * @return the plugin manager
      */
     @Bean
@@ -177,8 +190,9 @@ public class PluginManagerAutoConfiguration {
             PluginRegistry pluginRegistry,
             ExtensionRegistry extensionRegistry,
             PluginEventBus eventBus,
-            PluginLoader pluginLoader) {
-        return new DefaultPluginManager(pluginRegistry, extensionRegistry, eventBus, pluginLoader);
+            PluginLoader pluginLoader,
+            PluginDependencyResolver dependencyResolver) {
+        return new DefaultPluginManager(pluginRegistry, extensionRegistry, eventBus, pluginLoader, dependencyResolver);
     }
 
     /**
