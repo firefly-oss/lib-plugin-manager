@@ -19,6 +19,7 @@ A modular plugin system for extending Firefly Core Banking Platform functionalit
   - [Defining Extension Points](#defining-extension-points)
   - [Microservice-Plugin Relationship](#microservice-plugin-relationship)
   - [Extension Point Design Principles](#extension-point-design-principles)
+  - [Deciding What Logic Belongs Where](#deciding-what-logic-belongs-where)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
@@ -55,9 +56,10 @@ A modular plugin system for extending Firefly Core Banking Platform functionalit
 - [Advanced Topics](#advanced-topics)
   - [Plugin Dependency Management](#plugin-dependency-management)
   - [Hot Deployment](#hot-deployment)
+  - [Plugin Versioning and Compatibility](#plugin-versioning-and-compatibility)
   - [Plugin Health Monitoring](#plugin-health-monitoring)
-  - [Plugin Testing](#plugin-testing)
-  - [Internationalization](#internationalization)
+  - [Plugin Debugging](#plugin-debugging)
+  - [Plugin Testing Framework](#plugin-testing-framework)
 - [Examples](#examples)
   - [Example 1: Credit Card Payment Plugin](#example-1-credit-card-payment-plugin)
   - [Example 2: Machine Learning Fraud Detection](#example-2-machine-learning-fraud-detection)
@@ -65,13 +67,6 @@ A modular plugin system for extending Firefly Core Banking Platform functionalit
 - [Implementation Status](#implementation-status)
   - [Implemented Features](#implemented-features)
   - [Planned Features](#planned-features)
-- [Advanced Topics](#advanced-topics)
-  - [Plugin Dependency Management](#plugin-dependency-management)
-  - [Hot Deployment](#hot-deployment)
-  - [Plugin Versioning and Compatibility](#plugin-versioning-and-compatibility)
-  - [Plugin Health Monitoring](#plugin-health-monitoring)
-  - [Plugin Debugging](#plugin-debugging)
-  - [Plugin Testing Framework](#plugin-testing-framework)
 - [Complete Example: Microservice Extension Point and Plugin Implementation](#complete-example-microservice-extension-point-and-plugin-implementation)
 
 ## Overview
@@ -216,6 +211,55 @@ The Plugin Loader is critical for the dynamic nature of the plugin system and fo
 
 A key architectural principle of the Firefly Plugin Manager is that extension points are defined within core microservices, while plugins implement these extension points. This section explains this critical relationship and how it enables a flexible, maintainable system.
 
+The Firefly Platform follows a three-tier architecture:
+
+1. **Core Microservices**: Focus on data management (CRUD operations), basic data validation, and defining extension points
+2. **Orchestrator**: Implements complex business processes and workflows using Camunda 8, coordinates between multiple services
+3. **Plugins**: Provide customizable implementations of extension points, integrate with external systems
+
+```mermaid
+graph TB
+    %% Define the main layers
+    subgraph Plugins["Plugins (Customization Layer)"]
+        Plugin1["Fraud Detection<br>Plugin"]
+        Plugin2["Credit Scoring<br>Plugin"]
+        Plugin3["Notification<br>Plugin"]
+    end
+
+    subgraph Orchestrator["Orchestrator (Business Process Layer)"]
+        Process1["Account Opening<br>Process"]
+        Process2["Payment<br>Process"]
+        Camunda["Camunda 8<br>Workflow Engine"]
+    end
+
+    subgraph CoreMS["Core Microservices (Data Layer)"]
+        MS1["core-banking-<br>accounts"]
+        MS2["core-banking-<br>cards"]
+        MS3["core-banking-<br>payments"]
+        MS4["common-platform-<br>customer-mgmt"]
+    end
+
+    %% Define relationships between layers
+    Orchestrator -->|"CRUD Operations"| CoreMS
+    Plugins -->|"Extend"| CoreMS
+    Plugins -->|"Integrate with"| Orchestrator
+
+    %% Styling
+    classDef plugins fill:#f9a,stroke:#333,stroke-width:2px;
+    classDef orchestrator fill:#d9a,stroke:#333,stroke-width:2px;
+    classDef core fill:#9af,stroke:#333,stroke-width:2px;
+
+    class Plugins plugins;
+    class Orchestrator orchestrator;
+    class CoreMS core;
+```
+
+This three-tier separation of responsibilities provides several benefits:
+
+- **Stability**: Core microservices can evolve independently of business processes and custom extensions
+- **Flexibility**: Business processes can be modified in the orchestrator without changing core data services
+- **Extensibility**: New features can be added through plugins without modifying existing code
+
 ### Defining Extension Points
 
 Extension points are contracts (interfaces) that are defined within Firefly core microservices. Each microservice identifies specific areas where its functionality can be extended or customized, and defines extension points for these areas.
@@ -264,15 +308,25 @@ public interface FraudDetector {
 
 ### Microservice-Plugin Relationship
 
-The relationship between microservices and plugins is fundamental to the Firefly architecture:
+The relationship between core microservices, the orchestrator, and plugins is fundamental to the Firefly architecture:
 
-1. **Core Microservices Define Extension Points**: Each core microservice (like core-banking-cards) defines extension points that represent specific capabilities that can be extended.
+1. **Core Microservices Define Extension Points and Handle Data**: Core microservices focus on data management (CRUD operations) and define extension points that represent specific capabilities that can be extended. They typically don't contain complex business logic or orchestration between domains.
 
-2. **Plugins Implement Extension Points**: Plugins provide concrete implementations of these extension points, extending the functionality of core microservices without modifying their code.
+2. **Orchestrator Implements Business Processes**: The Orchestrator, built with Camunda 8 and Spring Boot 3 WebFlux, contains the complex business logic and workflows. It coordinates calls between different core microservices and manages long-running business processes.
 
-3. **Plugin Manager Connects Them**: The Plugin Manager acts as the bridge between microservices and plugins, allowing microservices to discover and use plugin implementations at runtime.
+3. **Plugins Implement Extension Points**: Plugins provide concrete implementations of extension points, extending the functionality of core microservices without modifying their code. They also integrate with external systems and add institution-specific features.
 
-4. **Loose Coupling**: This architecture ensures loose coupling between core functionality and extensions, allowing each to evolve independently.
+4. **Plugin Manager Connects Them**: The Plugin Manager acts as the bridge between microservices and plugins, allowing microservices to discover and use plugin implementations at runtime.
+
+5. **Loose Coupling**: This architecture ensures loose coupling between core functionality, business processes, and extensions, allowing each to evolve independently.
+
+#### Responsibilities by Component
+
+| Component | Responsibilities | Examples |
+|-----------|-----------------|----------|
+| **Core Microservices** | • Basic data operations (CRUD)<br>• Data validation<br>• Define extension points<br>• Expose data APIs | • Account data storage<br>• Transaction recording<br>• Customer data management |
+| **Orchestrator** | • Business process workflows<br>• Cross-domain validation<br>• Service orchestration<br>• Error handling & compensation | • Account opening process<br>• Payment processing workflow<br>• Loan application process |
+| **Plugins** | • Implement extension points<br>• Integrate with external systems<br>• Add custom business logic<br>• Provide institution-specific features | • Fraud detection<br>• Credit scoring<br>• Notification services<br>• Regulatory reporting |
 
 **Diagram: Microservice-Plugin Relationship**
 
@@ -348,6 +402,66 @@ When designing extension points in core microservices, follow these principles:
 9. **Security Boundaries**: Consider security implications and define appropriate permission requirements.
 
 10. **Performance Considerations**: Document performance expectations and constraints for implementations.
+
+### Deciding What Logic Belongs Where
+
+When developing for the Firefly Platform, use these guidelines to determine where functionality should be implemented:
+
+```mermaid
+sequenceDiagram
+    participant Client as Client Application
+    participant Orch as Payment Orchestrator
+    participant Acct as core-banking-accounts
+    participant Pay as core-banking-payments
+    participant PM as Plugin Manager
+    participant FP as Fraud Plugin
+    participant PP as Payment Provider Plugin
+
+    Client->>Orch: Process Payment Request
+    Orch->>Acct: Get Account Balance
+    Acct-->>Orch: Return Balance
+    Orch->>Pay: Validate Transaction
+    Pay->>PM: Get Transaction Validators
+    PM->>FP: Call Fraud Detection
+    FP-->>PM: Return Validation Result
+    PM-->>Pay: Return Validation Result
+    Pay-->>Orch: Return Validation Result
+    Orch->>Pay: Process Payment
+    Pay->>PM: Get Payment Processors
+    PM->>PP: Process Payment
+    PP-->>PM: Return Payment Result
+    PM-->>Pay: Return Payment Result
+    Pay-->>Orch: Return Payment Result
+    Orch->>Acct: Update Account Balance
+    Acct-->>Orch: Confirm Update
+    Orch-->>Client: Return Payment Result
+```
+
+#### Core Microservices Should Contain
+
+- Basic data operations (CRUD)
+- Data model definitions and relationships
+- Simple data validation rules
+- Extension point interfaces
+- Basic data retrieval and storage APIs
+
+#### Orchestrator Should Contain
+
+- Complex business processes and workflows
+- Coordination between multiple microservices
+- Cross-domain business rules
+- Error handling and compensation logic
+- Integration with Camunda 8 for process management
+
+#### Plugins Should Contain
+
+- Implementations of extension points
+- Integration with external systems
+- Custom business logic specific to an institution
+- Specialized algorithms (fraud detection, credit scoring, etc.)
+- Value-added features that extend core functionality
+
+For more detailed guidance, refer to the [Microservice vs Plugin Responsibilities](examples/04-microservice-plugin-responsibilities.md) document.
 
 ## Getting Started
 
@@ -1818,89 +1932,99 @@ When developing and deploying plugins, follow these security best practices:
 
 ### Plugin Dependency Management
 
-The Firefly Plugin Manager includes a sophisticated dependency resolution system that ensures plugins are loaded and started in the correct order:
+The Firefly Plugin Manager includes a sophisticated dependency resolution system that ensures plugins are loaded and started in the correct order based on their dependencies.
+
+#### Key Features
 
 - **Dependency Declaration**: Plugins declare their dependencies using the `dependencies` attribute in the `@Plugin` annotation
-- **Dependency Resolution**: The plugin manager builds a dependency graph and topologically sorts it
-- **Circular Dependency Detection**: The system detects and reports circular dependencies
+- **Dependency Resolution**: The plugin manager builds a dependency graph and topologically sorts it to determine the correct loading order
+- **Circular Dependency Detection**: The system automatically detects and reports circular dependencies
 - **Optional Dependencies**: Plugins can specify optional dependencies that enhance functionality but aren't required
 - **Version Constraints**: Dependencies can include version constraints to ensure compatibility
+
+#### Dependency Syntax
+
+Dependencies are specified as strings in the following format:
+
+- **Basic dependency**: `"com.example.plugin-id"`
+- **Version constraint**: `"com.example.plugin-id>=1.0.0"` (supports `>`, `>=`, `<`, `<=`, `=`, `==`)
+- **Optional dependency**: `"?com.example.plugin-id"` (prefixed with `?`)
 
 Example of dependency declaration:
 
 ```java
 @Plugin(
         id = "com.catalis.banking.fraud-detection",
-        // ...
+        name = "Fraud Detection Plugin",
+        version = "1.0.0",
+        description = "Detects fraudulent transactions using machine learning",
         dependencies = {
-            "com.catalis.banking.transaction-history>=2.0.0",
-            "com.catalis.banking.customer-profile",
-            "?com.catalis.banking.machine-learning"  // Optional dependency
+            "com.catalis.banking.transaction-history>=2.0.0",  // Required with version constraint
+            "com.catalis.banking.customer-profile",           // Required without version constraint
+            "?com.catalis.banking.machine-learning"          // Optional dependency
         }
 )
-```
-
-The dependency resolver ensures that all required plugins are available and compatible:
-
-```java
-private void resolveDependencies(String pluginId, Set<String> visited, Set<String> inProgress) {
-    if (inProgress.contains(pluginId)) {
-        throw new CircularDependencyException("Circular dependency detected: " + inProgress);
-    }
-
-    if (visited.contains(pluginId)) {
-        return; // Already resolved
-    }
-
-    PluginDescriptor descriptor = descriptors.get(pluginId);
-    if (descriptor == null) {
-        throw new PluginNotFoundException("Plugin not found: " + pluginId);
-    }
-
-    inProgress.add(pluginId);
-
-    // Resolve each dependency
-    for (String dependencySpec : descriptor.metadata().dependencies()) {
-        boolean optional = dependencySpec.startsWith("?");
-        String dependency = optional ? dependencySpec.substring(1) : dependencySpec;
-
-        // Parse version constraints
-        String dependencyId = dependency;
-        String versionConstraint = "";
-        if (dependency.contains(">") || dependency.contains("=") || dependency.contains("<")) {
-            int constraintIndex = findConstraintIndex(dependency);
-            dependencyId = dependency.substring(0, constraintIndex);
-            versionConstraint = dependency.substring(constraintIndex);
-        }
-
-        PluginDescriptor dependencyDescriptor = descriptors.get(dependencyId);
-        if (dependencyDescriptor == null) {
-            if (optional) {
-                continue; // Skip optional dependency
-            } else {
-                throw new DependencyNotFoundException("Dependency not found: " + dependencyId);
-            }
-        }
-
-        // Check version constraint
-        if (!versionConstraint.isEmpty()) {
-            String dependencyVersion = dependencyDescriptor.metadata().version();
-            if (!satisfiesVersionConstraint(dependencyVersion, versionConstraint)) {
-                throw new IncompatibleDependencyException(
-                        "Dependency version constraint not satisfied: " +
-                        dependencyId + " " + versionConstraint +
-                        " (found: " + dependencyVersion + ")");
-            }
-        }
-
-        // Recursively resolve dependencies
-        resolveDependencies(dependencyId, visited, inProgress);
-    }
-
-    inProgress.remove(pluginId);
-    visited.add(pluginId);
+public class FraudDetectionPlugin extends AbstractPlugin {
+    // Plugin implementation
 }
 ```
+
+#### Dependency Resolution Process
+
+When a plugin is started, the dependency resolver:
+
+1. Identifies all dependencies of the plugin
+2. Recursively resolves dependencies of those dependencies
+3. Detects and reports any circular dependencies
+4. Verifies that all required dependencies are available
+5. Checks that all version constraints are satisfied
+6. Determines the correct order to start the plugins
+7. Starts each plugin in dependency order
+
+#### Implementation
+
+The dependency resolution is implemented in the `PluginDependencyResolver` class, which uses a depth-first search algorithm to build a topologically sorted list of plugins:
+
+```java
+public List<PluginDescriptor> resolveDependencies(Collection<PluginDescriptor> plugins) {
+    // Create a map of plugin IDs to descriptors for quick lookup
+    Map<String, PluginDescriptor> pluginMap = plugins.stream()
+            .collect(Collectors.toMap(PluginDescriptor::getId, p -> p));
+
+    // Create a set to track visited plugins during traversal
+    Set<String> visited = new HashSet<>();
+
+    // Create a list to store the plugins in dependency order
+    List<PluginDescriptor> orderedPlugins = new ArrayList<>();
+
+    // Process each plugin
+    for (PluginDescriptor plugin : plugins) {
+        if (!visited.contains(plugin.getId())) {
+            // Use a set to track the current dependency path for cycle detection
+            Set<String> currentPath = new HashSet<>();
+            resolveDependenciesRecursive(plugin.getId(), pluginMap, visited, currentPath, orderedPlugins);
+        }
+    }
+
+    return orderedPlugins;
+}
+```
+
+#### Exception Handling
+
+The dependency resolver throws specific exceptions for different error conditions:
+
+- **CircularDependencyException**: When a circular dependency is detected
+- **DependencyNotFoundException**: When a required dependency cannot be found
+- **IncompatibleDependencyException**: When a dependency is found but its version doesn't satisfy the constraint
+
+#### Best Practices
+
+1. **Minimize Dependencies**: Keep the dependency graph as simple as possible
+2. **Use Version Constraints**: Specify version constraints to ensure compatibility
+3. **Consider Optional Dependencies**: Use optional dependencies for features that enhance but aren't critical
+4. **Avoid Circular Dependencies**: Design your plugins to avoid circular dependencies
+5. **Document Dependencies**: Clearly document what each dependency is used for
 
 ### Hot Deployment
 
@@ -2146,128 +2270,6 @@ public class PluginDebugController {
         return debugger.stopDebugSession(sessionId);
     }
 
-    // Set a breakpoint
-    @PostMapping("/sessions/{sessionId}/breakpoints")
-    public Mono<String> setBreakpoint(
-            @PathVariable String sessionId,
-            @RequestParam String className,
-            @RequestParam int lineNumber) {
-        return debugger.setBreakpoint(sessionId, className, lineNumber);
-    }
-
-    // Remove a breakpoint
-    @DeleteMapping("/sessions/{sessionId}/breakpoints/{breakpointId}")
-    public Mono<Void> removeBreakpoint(
-            @PathVariable String sessionId,
-            @PathVariable String breakpointId) {
-        return debugger.removeBreakpoint(sessionId, breakpointId);
-    }
-
-    // Get all breakpoints
-    @GetMapping("/sessions/{sessionId}/breakpoints")
-    public Flux<Map<String, Object>> getBreakpoints(@PathVariable String sessionId) {
-        return debugger.getBreakpoints(sessionId);
-    }
-
-    // Continue execution after a breakpoint
-    @PostMapping("/sessions/{sessionId}/continue")
-    public Mono<Void> continueExecution(@PathVariable String sessionId) {
-        return debugger.continueExecution(sessionId);
-    }
-
-    // Step over the current line
-    @PostMapping("/sessions/{sessionId}/step-over")
-    public Mono<Void> stepOver(@PathVariable String sessionId) {
-        return debugger.stepOver(sessionId);
-    }
-
-    // Step into a method
-    @PostMapping("/sessions/{sessionId}/step-into")
-    public Mono<Void> stepInto(@PathVariable String sessionId) {
-        return debugger.stepInto(sessionId);
-    }
-
-    // Step out of the current method
-    @PostMapping("/sessions/{sessionId}/step-out")
-    public Mono<Void> stepOut(@PathVariable String sessionId) {
-        return debugger.stepOut(sessionId);
-    }
-
-    // Get the value of a variable
-    @GetMapping("/sessions/{sessionId}/variables/{variableName}")
-    public Mono<Object> getVariableValue(
-            @PathVariable String sessionId,
-            @PathVariable String variableName) {
-        return debugger.getVariableValue(sessionId, variableName);
-    }
-
-    // Get all local variables
-    @GetMapping("/sessions/{sessionId}/variables")
-    public Flux<Map.Entry<String, Object>> getLocalVariables(@PathVariable String sessionId) {
-        return debugger.getLocalVariables(sessionId);
-    }
-
-    // Evaluate an expression
-    @PostMapping("/sessions/{sessionId}/evaluate")
-    public Mono<Object> evaluateExpression(
-            @PathVariable String sessionId,
-            @RequestParam String expression) {
-        return debugger.evaluateExpression(sessionId, expression);
-    }
-
-    // Get the stack trace
-    @GetMapping("/sessions/{sessionId}/stack-trace")
-    public Flux<Map<String, Object>> getStackTrace(@PathVariable String sessionId) {
-        return debugger.getStackTrace(sessionId);
-    }
-}
-```
-
-#### Debugging Events
-
-The Plugin Debugger publishes events to the event bus when debugging actions occur. These events can be subscribed to by other components to react to debugging actions:
-
-```java
-// Subscribe to debugging events
-eventBus.subscribe(PluginDebugEvent.class)
-        .filter(event -> event.getType() == Type.BREAKPOINT_HIT)
-        .subscribe(event -> {
-            logger.info("Breakpoint hit: {}", event.getMessage());
-            // React to the breakpoint hit
-        });
-```
-
-The following event types are available:
-
-- **BREAKPOINT_HIT**: A breakpoint was hit
-- **STEP_COMPLETED**: A step operation completed
-- **EXCEPTION_THROWN**: An exception was thrown
-- **SESSION_STARTED**: A debug session started
-- **SESSION_ENDED**: A debug session ended
-- **VARIABLE_INSPECTED**: A variable was inspected
-- **EXPRESSION_EVALUATED**: An expression was evaluated
-
-#### Security Considerations
-
-The Plugin Debugger provides powerful capabilities that should be used with caution:
-
-- **Access Control**: Restrict access to the debugging API to authorized users only
-- **Remote Debugging**: Disable remote debugging in production environments
-- **Firewall Rules**: Configure firewall rules to restrict access to debugging ports
-- **Sensitive Data**: Be careful when inspecting variables that may contain sensitive data
-- **Resource Usage**: Debugging can impact performance, so use it judiciously in production
-
-#### Best Practices
-
-- **Development Environment**: Use the Plugin Debugger primarily in development and testing environments
-- **Temporary Debugging**: Enable debugging temporarily for troubleshooting and disable it when not needed
-- **Logging**: Use logging alongside debugging for persistent troubleshooting information
-- **Session Management**: Always stop debug sessions when they are no longer needed
-- **Performance Impact**: Be aware of the performance impact of debugging, especially with many breakpoints
-- **Breakpoint Placement**: Place breakpoints strategically to minimize performance impact
-- **Secure Access**: Implement proper authentication and authorization for debugging endpoints
-- 
-```java
     // Set a breakpoint
     @PostMapping("/sessions/{sessionId}/breakpoints")
     public Mono<String> setBreakpoint(
@@ -3015,9 +3017,10 @@ The Firefly Plugin Manager implementation is progressing well, with several key 
 - ✅ Handling plugin updates without restart
 
 #### Plugin Dependency Management
-- ⏳ Dependency resolution and validation
-- ⏳ Version constraint checking
-- ⏳ Circular dependency detection
+- ✅ Dependency resolution and validation
+- ✅ Version constraint checking
+- ✅ Circular dependency detection
+- ✅ Optional dependency support
 
 #### Plugin Health Monitoring
 - ✅ Health checks for plugins
@@ -3038,8 +3041,8 @@ The Firefly Plugin Manager implementation is progressing well, with several key 
 - ⏳ Test harness for integration testing
 
 #### Documentation and Examples
-- ⏳ Example plugins for different use cases
-- ⏳ Comprehensive documentation for plugin developers
+- ✅ Example plugins for different use cases
+- ✅ Comprehensive documentation for plugin developers
 
 Legend:
 - ✅ Implemented

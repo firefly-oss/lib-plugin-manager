@@ -9,6 +9,7 @@ This directory contains example implementations of plugins using the Firefly Plu
 | [Credit Card Payment Plugin](./01-credit-card-payment-plugin.md) | Demonstrates implementing a payment processor extension point for credit card payments |
 | [Machine Learning Fraud Detector Plugin](./02-machine-learning-fraud-detector-plugin.md) | Shows how to create a fraud detection plugin using machine learning techniques |
 | [Company Enrichment Information Plugin](./03-company-enrichment-information-plugin.md) | Illustrates implementing a company information enrichment extension point using the eInforma Developer API |
+| [Microservice vs Plugin Responsibilities](./04-microservice-plugin-responsibilities.md) | Explains what logic belongs in core microservices versus plugin projects |
 
 ## Purpose
 
