@@ -237,6 +237,8 @@ graph TB
         MS2["core-banking-<br>cards"]
         MS3["core-banking-<br>payments"]
         MS4["common-platform-<br>customer-mgmt"]
+        MS5["core-banking-<br>ledger"]
+        MS6["common-platform-<br>accounting-gl"]
     end
 
     %% Define relationships between layers
@@ -324,7 +326,7 @@ The relationship between core microservices, the orchestrator, and plugins is fu
 
 | Component | Responsibilities | Examples |
 |-----------|-----------------|----------|
-| **Core Microservices** | • Basic data operations (CRUD)<br>• Data validation<br>• Define extension points<br>• Expose data APIs | • Account data storage<br>• Transaction recording<br>• Customer data management |
+| **Core Microservices** | • Basic data operations (CRUD)<br>• Data validation<br>• Define extension points<br>• Expose data APIs | • Account data in core-banking-accounts<br>• Transaction data in core-banking-ledger<br>• General Ledger in common-platform-accounting-gl<br>• Customer data in common-platform-customer-mgmt |
 | **Orchestrator** | • Business process workflows<br>• Cross-domain validation<br>• Service orchestration<br>• Error handling & compensation | • Account opening process<br>• Payment processing workflow<br>• Loan application process |
 | **Plugins** | • Implement extension points<br>• Integrate with external systems<br>• Add custom business logic<br>• Provide institution-specific features | • Fraud detection<br>• Credit scoring<br>• Notification services<br>• Regulatory reporting |
 
@@ -412,7 +414,9 @@ sequenceDiagram
     participant Client as Client Application
     participant Orch as Payment Orchestrator
     participant Acct as core-banking-accounts
+    participant Ledger as core-banking-ledger
     participant Pay as core-banking-payments
+    participant GL as common-platform-accounting-gl
     participant PM as Plugin Manager
     participant FP as Fraud Plugin
     participant PP as Payment Provider Plugin
@@ -420,20 +424,24 @@ sequenceDiagram
     Client->>Orch: Process Payment Request
     Orch->>Acct: Get Account Balance
     Acct-->>Orch: Return Balance
-    Orch->>Pay: Validate Transaction
-    Pay->>PM: Get Transaction Validators
+    Orch->>Ledger: Validate Transaction
+    Ledger->>PM: Get Transaction Validators
     PM->>FP: Call Fraud Detection
     FP-->>PM: Return Validation Result
-    PM-->>Pay: Return Validation Result
-    Pay-->>Orch: Return Validation Result
+    PM-->>Ledger: Return Validation Result
+    Ledger-->>Orch: Return Validation Result
     Orch->>Pay: Process Payment
     Pay->>PM: Get Payment Processors
     PM->>PP: Process Payment
     PP-->>PM: Return Payment Result
     PM-->>Pay: Return Payment Result
     Pay-->>Orch: Return Payment Result
+    Orch->>Ledger: Record Transaction
+    Ledger-->>Orch: Confirm Transaction Recorded
     Orch->>Acct: Update Account Balance
     Acct-->>Orch: Confirm Update
+    Orch->>GL: Update General Ledger
+    GL-->>Orch: Confirm GL Update
     Orch-->>Client: Return Payment Result
 ```
 
@@ -444,6 +452,12 @@ sequenceDiagram
 - Simple data validation rules
 - Extension point interfaces
 - Basic data retrieval and storage APIs
+
+Specific responsibilities include:
+- `core-banking-accounts`: Account data and balances
+- `core-banking-ledger`: Transaction data and records
+- `common-platform-accounting-gl`: Bank General Ledger
+- `common-platform-customer-mgmt`: Customer information
 
 #### Orchestrator Should Contain
 

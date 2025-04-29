@@ -49,11 +49,12 @@ Let's break down the Firefly Platform architecture using a real-world analogy: t
 ### Key Components Explained
 
 1. **Core Microservices**: These are separate, specialized applications that handle fundamental banking data operations (CRUD). For example:
-   - `core-banking-accounts`: Manages customer accounts, balances, and transactions data
+   - `core-banking-accounts`: Manages customer accounts and balances data
    - `core-banking-cards`: Handles credit and debit card operations data
    - `core-banking-payments`: Processes various payment types data
    - `common-platform-customer-mgmt`: Manages customer information and relationships
-   - `core-banking-ledger`: Manages accounting entries and financial records
+   - `core-banking-ledger`: Manages transaction data and financial records
+   - `common-platform-accounting-gl`: Manages the Bank General Ledger
 
    Each microservice focuses on a specific domain's data management and provides basic CRUD operations. They typically don't contain complex business logic or orchestration between domains.
 
@@ -131,7 +132,7 @@ graph TD
 
 Let's walk through a concrete example of how this works with the Orchestrator:
 
-1. The `core-banking-accounts` microservice defines a `TransactionValidatorExtensionPoint` interface that specifies how transactions can be validated before processing
+1. The `core-banking-ledger` microservice defines a `TransactionValidatorExtensionPoint` interface that specifies how transactions can be validated before processing
 
 2. A fraud detection plugin implements this interface with a `MachineLearningFraudValidator` class that uses AI to detect suspicious transactions
 
@@ -144,15 +145,15 @@ Let's walk through a concrete example of how this works with the Orchestrator:
    - Calls other microservices as needed (e.g., customer information, balance checks)
    - Before finalizing the transaction, it needs to validate it
 
-6. The accounts microservice asks the Plugin Manager: "Give me all transaction validators"
+6. The ledger microservice asks the Plugin Manager: "Give me all transaction validators"
 
 7. The Plugin Manager returns the `MachineLearningFraudValidator` (and any other validators from other plugins)
 
-8. The accounts microservice runs each validator on the transaction
+8. The ledger microservice runs each validator on the transaction
 
 9. If the fraud validator detects suspicious activity, it returns a "rejected" result with a reason
 
-10. The accounts microservice returns this result to the Orchestrator
+10. The ledger microservice returns this result to the Orchestrator
 
 11. The Orchestrator then decides what to do next based on the workflow definition (e.g., decline the transaction, request additional verification, or proceed)
 
@@ -1286,7 +1287,7 @@ Here are some real-world examples of functionality that should be implemented in
 |--------------|------------------------------|------------------------|----------|
 | Basic account data operations | ✅ | ❌ | Core microservices handle CRUD operations for account data |
 | Complex account opening process | ❌ | ✅ | Orchestrator coordinates the end-to-end process across multiple services |
-| Transaction data storage | ✅ | ❌ | Core microservices store transaction records |
+| Transaction data storage | ✅ | ❌ | The core-banking-ledger microservice stores transaction records |
 | Transaction processing workflow | ❌ | ✅ | Orchestrator handles the business process of processing transactions |
 | Simple balance retrieval | ✅ | ❌ | Core microservices provide basic data access |
 | Available balance calculation | ❌ | ✅ | Orchestrator combines data from multiple sources with business rules |
@@ -1349,6 +1350,8 @@ graph TB
         MS2["core-banking-<br>cards"]
         MS3["core-banking-<br>payments"]
         MS4["common-platform-<br>customer-mgmt"]
+        MS5["core-banking-<br>ledger"]
+        MS6["common-platform-<br>accounting-gl"]
     end
 
     %% Define relationships between layers
@@ -1372,7 +1375,7 @@ graph TB
     class Orchestrator orchestrator;
     class CoreMS core;
     class Process1,Process2,Process3,Camunda process;
-    class MS1,MS2,MS3,MS4 microservice;
+    class MS1,MS2,MS3,MS4,MS5,MS6 microservice;
     class Plugin1,Plugin2,Plugin3,Plugin4 plugins;
 ```
 
@@ -1402,7 +1405,9 @@ sequenceDiagram
     participant Client as Client Application
     participant Orch as Payment Orchestrator
     participant Acct as core-banking-accounts
+    participant Ledger as core-banking-ledger
     participant Pay as core-banking-payments
+    participant GL as common-platform-accounting-gl
     participant PM as Plugin Manager
     participant FP as Fraud Plugin
     participant PP as Payment Provider Plugin
@@ -1414,12 +1419,12 @@ sequenceDiagram
     Acct-->>Orch: Return Balance
 
     %% Fraud check using plugin
-    Orch->>Pay: Validate Transaction
-    Pay->>PM: Get Transaction Validators
+    Orch->>Ledger: Validate Transaction
+    Ledger->>PM: Get Transaction Validators
     PM->>FP: Call Fraud Detection
     FP-->>PM: Return Validation Result
-    PM-->>Pay: Return Validation Result
-    Pay-->>Orch: Return Validation Result
+    PM-->>Ledger: Return Validation Result
+    Ledger-->>Orch: Return Validation Result
 
     %% Process payment using plugin
     Orch->>Pay: Process Payment
@@ -1429,9 +1434,17 @@ sequenceDiagram
     PM-->>Pay: Return Payment Result
     Pay-->>Orch: Return Payment Result
 
+    %% Record transaction in ledger
+    Orch->>Ledger: Record Transaction
+    Ledger-->>Orch: Confirm Transaction Recorded
+
     %% Update account balance
     Orch->>Acct: Update Account Balance
     Acct-->>Orch: Confirm Update
+
+    %% Update general ledger
+    Orch->>GL: Update General Ledger
+    GL-->>Orch: Confirm GL Update
 
     %% Return final result
     Orch-->>Client: Return Payment Result
@@ -1439,8 +1452,12 @@ sequenceDiagram
 
 In this example:
 
-- **Core Microservices** (accounts, payments) handle data operations
-- **Orchestrator** coordinates the overall payment process
+- **Core Microservices**:
+  - `core-banking-accounts`: Manages account balances
+  - `core-banking-ledger`: Stores transaction data and handles transaction validation
+  - `core-banking-payments`: Handles payment processing
+  - `common-platform-accounting-gl`: Manages the Bank General Ledger
+- **Orchestrator** coordinates the overall payment process and workflow
 - **Plugins** provide fraud detection and payment processing implementations
 
-This clear separation of responsibilities makes the system both stable and flexible.
+This clear separation of responsibilities makes the system both stable and flexible, with each microservice handling its specific domain data.
