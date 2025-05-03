@@ -11,6 +11,7 @@ A modular plugin system for extending Firefly Core Banking Platform functionalit
   - [Extension](#extension)
   - [Plugin Lifecycle](#plugin-lifecycle)
 - [Architecture](#architecture)
+  - [Utility Classes](#utility-classes)
   - [Plugin Registry](#plugin-registry)
   - [Extension Registry](#extension-registry)
   - [Event Bus](#event-bus)
@@ -134,6 +135,20 @@ Each state transition triggers events that other components can observe and reac
 ## Architecture
 
 The plugin manager consists of the following main components:
+
+### Utility Classes
+
+The Plugin Manager provides a set of utility classes in the `com.catalis.core.plugin.util` package to simplify common tasks related to plugin management:
+
+- **PluginUtils**: Provides helper methods for plugin operations, including extracting plugin IDs from file names, filtering plugins by state, finding plugins by ID, creating descriptors from metadata, resolving plugin paths, and formatting plugin information.
+
+- **VersionUtils**: Offers utilities for semantic versioning operations, including version validation, comparison, constraint checking, and version calculation. This helps manage plugin compatibility and dependencies.
+
+- **ClassLoaderUtils**: Simplifies class loading operations with methods for loading classes, creating instances, finding resources, and managing class loader hierarchies. This is particularly useful for plugin isolation and dynamic loading.
+
+- **ResourceUtils**: Provides utilities for resource management, including reading and writing files, loading properties, listing files, and managing directories. These utilities help plugins interact with the file system in a controlled manner.
+
+These utility classes reduce code duplication and provide consistent implementations of common functionality throughout the plugin manager codebase.
 
 ### Plugin Registry
 
@@ -508,7 +523,38 @@ private PluginManager pluginManager;
 pluginManager.initialize().block();
 ```
 
-2. **Register an Extension Point**
+2. **Using Utility Classes**
+
+The plugin manager provides several utility classes to simplify common tasks:
+
+```java
+// Using VersionUtils to compare plugin versions
+String version1 = "1.2.0";
+String version2 = "1.1.5";
+if (VersionUtils.compareVersions(version1, version2) > 0) {
+    // version1 is newer than version2
+}
+
+// Using PluginUtils to extract plugin ID from filename
+String filename = "my-awesome-plugin-1.0.0.jar";
+String pluginId = PluginUtils.extractPluginIdFromFileName(filename);
+// pluginId = "my-awesome-plugin"
+
+// Using ClassLoaderUtils to load a class
+Optional<Class<?>> clazz = ClassLoaderUtils.loadClass("com.example.MyClass");
+clazz.ifPresent(c -> {
+    // Use the class
+});
+
+// Using ResourceUtils to read a file
+Path configFile = Paths.get("config/plugin-config.properties");
+Optional<String> content = ResourceUtils.readFileAsString(configFile);
+content.ifPresent(c -> {
+    // Process the file content
+});
+```
+
+3. **Register an Extension Point**
 
 ```java
 // Register an extension point
@@ -517,7 +563,7 @@ pluginManager.getExtensionRegistry()
         .block();
 ```
 
-3. **Install a Plugin**
+4. **Install a Plugin**
 
 #### Plugin Installation Methods
 
@@ -571,14 +617,14 @@ For a more seamless integration, you can use annotation-based auto-detection:
 
 Choose the installation method that best fits your deployment strategy. For more details on packaging and deploying plugins, see the [Step 5: Package the Plugin](#step-5-package-the-plugin) section.
 
-4. **Start a Plugin**
+5. **Start a Plugin**
 
 ```java
 // Start a plugin
 pluginManager.startPlugin("com.example.my-plugin").block();
 ```
 
-5. **Get Extensions**
+6. **Get Extensions**
 
 ```java
 // Get all extensions for an extension point
