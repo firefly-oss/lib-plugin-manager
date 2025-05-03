@@ -51,8 +51,19 @@ public class PluginPermission implements Serializable {
         EXECUTE
     }
 
+    /**
+     * The type of permission.
+     */
     private final Type type;
+
+    /**
+     * The target of the permission (e.g., file path, host name).
+     */
     private final String target;
+
+    /**
+     * The action allowed on the target (e.g., read, write).
+     */
     private final String action;
 
     /**

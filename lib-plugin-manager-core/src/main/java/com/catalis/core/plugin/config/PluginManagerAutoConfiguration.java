@@ -41,6 +41,13 @@ import org.springframework.context.annotation.Primary;
 public class PluginManagerAutoConfiguration {
 
     /**
+     * Creates a new PluginManagerAutoConfiguration instance.
+     */
+    public PluginManagerAutoConfiguration() {
+        // Default constructor
+    }
+
+    /**
      * Creates an ObjectMapper bean for plugin event serialization if one doesn't exist.
      *
      * @return the object mapper

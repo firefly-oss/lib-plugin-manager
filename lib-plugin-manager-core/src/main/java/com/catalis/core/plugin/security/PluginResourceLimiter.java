@@ -56,22 +56,47 @@ public class PluginResourceLimiter {
             this(256 * 1024 * 1024, 10, 25, 100, 20);
         }
 
+        /**
+         * Gets the maximum memory in bytes.
+         *
+         * @return the maximum memory in bytes
+         */
         public long getMaxMemoryBytes() {
             return maxMemoryBytes;
         }
 
+        /**
+         * Gets the maximum number of threads.
+         *
+         * @return the maximum number of threads
+         */
         public int getMaxThreads() {
             return maxThreads;
         }
 
+        /**
+         * Gets the maximum CPU percentage (0-100).
+         *
+         * @return the maximum CPU percentage
+         */
         public int getMaxCpuPercentage() {
             return maxCpuPercentage;
         }
 
+        /**
+         * Gets the maximum number of open file handles.
+         *
+         * @return the maximum number of open file handles
+         */
         public int getMaxFileHandles() {
             return maxFileHandles;
         }
 
+        /**
+         * Gets the maximum number of network connections.
+         *
+         * @return the maximum number of network connections
+         */
         public int getMaxNetworkConnections() {
             return maxNetworkConnections;
         }
@@ -81,6 +106,13 @@ public class PluginResourceLimiter {
      * Resource usage statistics for a plugin.
      */
     public static class ResourceUsage {
+
+        /**
+         * Creates a new ResourceUsage instance with default values.
+         */
+        public ResourceUsage() {
+            // Initialize with default values
+        }
         private final AtomicLong memoryBytes = new AtomicLong(0);
         private final AtomicLong threadCount = new AtomicLong(0);
         private final AtomicLong cpuTimeNanos = new AtomicLong(0);
@@ -89,54 +121,120 @@ public class PluginResourceLimiter {
         private long lastCpuTimeNanos = 0;
         private int cpuPercentage = 0;
 
+        /**
+         * Gets the current memory usage in bytes.
+         *
+         * @return the memory usage in bytes
+         */
         public long getMemoryBytes() {
             return memoryBytes.get();
         }
 
+        /**
+         * Sets the memory usage in bytes.
+         *
+         * @param bytes the memory usage in bytes
+         */
         public void setMemoryBytes(long bytes) {
             memoryBytes.set(bytes);
         }
 
+        /**
+         * Gets the current thread count.
+         *
+         * @return the thread count
+         */
         public long getThreadCount() {
             return threadCount.get();
         }
 
+        /**
+         * Sets the thread count.
+         *
+         * @param count the thread count
+         */
         public void setThreadCount(long count) {
             threadCount.set(count);
         }
 
+        /**
+         * Gets the CPU time in nanoseconds.
+         *
+         * @return the CPU time in nanoseconds
+         */
         public long getCpuTimeNanos() {
             return cpuTimeNanos.get();
         }
 
+        /**
+         * Sets the CPU time in nanoseconds.
+         *
+         * @param nanos the CPU time in nanoseconds
+         */
         public void setCpuTimeNanos(long nanos) {
             cpuTimeNanos.set(nanos);
         }
 
+        /**
+         * Gets the CPU usage percentage (0-100).
+         *
+         * @return the CPU usage percentage
+         */
         public int getCpuPercentage() {
             return cpuPercentage;
         }
 
+        /**
+         * Sets the CPU usage percentage (0-100).
+         *
+         * @param percentage the CPU usage percentage
+         */
         public void setCpuPercentage(int percentage) {
             this.cpuPercentage = percentage;
         }
 
+        /**
+         * Gets the number of open file handles.
+         *
+         * @return the number of open file handles
+         */
         public long getFileHandles() {
             return fileHandles.get();
         }
 
+        /**
+         * Sets the number of open file handles.
+         *
+         * @param count the number of open file handles
+         */
         public void setFileHandles(long count) {
             fileHandles.set(count);
         }
 
+        /**
+         * Gets the number of open network connections.
+         *
+         * @return the number of open network connections
+         */
         public long getNetworkConnections() {
             return networkConnections.get();
         }
 
+        /**
+         * Sets the number of open network connections.
+         *
+         * @param count the number of open network connections
+         */
         public void setNetworkConnections(long count) {
             networkConnections.set(count);
         }
 
+        /**
+         * Updates the CPU usage percentage based on the current CPU time and interval.
+         *
+         * @param currentCpuTimeNanos the current CPU time in nanoseconds
+         * @param intervalNanos the interval in nanoseconds
+         */
         public void updateCpuPercentage(long currentCpuTimeNanos, long intervalNanos) {
             if (lastCpuTimeNanos > 0 && intervalNanos > 0) {
                 long cpuTimeDiff = currentCpuTimeNanos - lastCpuTimeNanos;
@@ -198,10 +296,10 @@ public class PluginResourceLimiter {
     public void unregisterPlugin(String pluginId) {
         pluginLimits.remove(pluginId);
         pluginUsage.remove(pluginId);
-        
+
         // Remove all threads associated with this plugin
         threadToPluginId.entrySet().removeIf(entry -> entry.getValue().equals(pluginId));
-        
+
         logger.debug("Unregistered plugin {}", pluginId);
     }
 
@@ -213,13 +311,13 @@ public class PluginResourceLimiter {
      */
     public void registerThread(Thread thread, String pluginId) {
         threadToPluginId.put(thread, pluginId);
-        
+
         // Update thread count
         ResourceUsage usage = pluginUsage.get(pluginId);
         if (usage != null) {
             usage.setThreadCount(usage.getThreadCount() + 1);
         }
-        
+
         logger.debug("Registered thread {} with plugin {}", thread.getName(), pluginId);
     }
 
@@ -236,7 +334,7 @@ public class PluginResourceLimiter {
             if (usage != null) {
                 usage.setThreadCount(usage.getThreadCount() - 1);
             }
-            
+
             logger.debug("Unregistered thread {} from plugin {}", thread.getName(), pluginId);
         }
     }
@@ -252,25 +350,25 @@ public class PluginResourceLimiter {
         if (!enforceLimits) {
             return true;
         }
-        
+
         ResourceLimits limits = pluginLimits.get(pluginId);
         ResourceUsage usage = pluginUsage.get(pluginId);
-        
+
         if (limits == null || usage == null) {
             logger.warn("Plugin {} not registered with resource limiter", pluginId);
             return false;
         }
-        
+
         long currentMemory = usage.getMemoryBytes();
         long maxMemory = limits.getMaxMemoryBytes();
-        
+
         boolean canAllocate = (currentMemory + bytes) <= maxMemory;
-        
+
         if (!canAllocate) {
             logger.warn("Plugin {} exceeded memory limit: current={}, requested={}, max={}",
                     pluginId, currentMemory, bytes, maxMemory);
         }
-        
+
         return canAllocate;
     }
 
@@ -284,25 +382,25 @@ public class PluginResourceLimiter {
         if (!enforceLimits) {
             return true;
         }
-        
+
         ResourceLimits limits = pluginLimits.get(pluginId);
         ResourceUsage usage = pluginUsage.get(pluginId);
-        
+
         if (limits == null || usage == null) {
             logger.warn("Plugin {} not registered with resource limiter", pluginId);
             return false;
         }
-        
+
         long currentThreads = usage.getThreadCount();
         int maxThreads = limits.getMaxThreads();
-        
+
         boolean canCreate = currentThreads < maxThreads;
-        
+
         if (!canCreate) {
             logger.warn("Plugin {} exceeded thread limit: current={}, max={}",
                     pluginId, currentThreads, maxThreads);
         }
-        
+
         return canCreate;
     }
 
@@ -316,25 +414,25 @@ public class PluginResourceLimiter {
         if (!enforceLimits) {
             return true;
         }
-        
+
         ResourceLimits limits = pluginLimits.get(pluginId);
         ResourceUsage usage = pluginUsage.get(pluginId);
-        
+
         if (limits == null || usage == null) {
             logger.warn("Plugin {} not registered with resource limiter", pluginId);
             return false;
         }
-        
+
         long currentFiles = usage.getFileHandles();
         int maxFiles = limits.getMaxFileHandles();
-        
+
         boolean canOpen = currentFiles < maxFiles;
-        
+
         if (!canOpen) {
             logger.warn("Plugin {} exceeded file handle limit: current={}, max={}",
                     pluginId, currentFiles, maxFiles);
         }
-        
+
         return canOpen;
     }
 
@@ -348,25 +446,25 @@ public class PluginResourceLimiter {
         if (!enforceLimits) {
             return true;
         }
-        
+
         ResourceLimits limits = pluginLimits.get(pluginId);
         ResourceUsage usage = pluginUsage.get(pluginId);
-        
+
         if (limits == null || usage == null) {
             logger.warn("Plugin {} not registered with resource limiter", pluginId);
             return false;
         }
-        
+
         long currentConnections = usage.getNetworkConnections();
         int maxConnections = limits.getMaxNetworkConnections();
-        
+
         boolean canOpen = currentConnections < maxConnections;
-        
+
         if (!canOpen) {
             logger.warn("Plugin {} exceeded network connection limit: current={}, max={}",
                     pluginId, currentConnections, maxConnections);
         }
-        
+
         return canOpen;
     }
 
@@ -444,49 +542,49 @@ public class PluginResourceLimiter {
     private void monitorResources() {
         try {
             long monitoringStartTime = System.nanoTime();
-            
+
             // Update CPU usage for each plugin
             for (Map.Entry<Thread, String> entry : threadToPluginId.entrySet()) {
                 Thread thread = entry.getKey();
                 String pluginId = entry.getValue();
-                
+
                 if (!thread.isAlive()) {
                     // Thread is no longer alive, remove it
                     unregisterThread(thread);
                     continue;
                 }
-                
+
                 ResourceUsage usage = pluginUsage.get(pluginId);
                 if (usage != null) {
                     // Get CPU time for the thread
                     long threadId = thread.getId();
                     long cpuTime = threadMXBean.getThreadCpuTime(threadId);
-                    
+
                     if (cpuTime >= 0) {  // -1 means the thread no longer exists
                         // Update total CPU time for the plugin
                         usage.setCpuTimeNanos(cpuTime);
                     }
                 }
             }
-            
+
             // Calculate CPU percentage and check limits
             long monitoringEndTime = System.nanoTime();
             long monitoringInterval = monitoringEndTime - monitoringStartTime;
-            
+
             for (Map.Entry<String, ResourceUsage> entry : pluginUsage.entrySet()) {
                 String pluginId = entry.getKey();
                 ResourceUsage usage = entry.getValue();
                 ResourceLimits limits = pluginLimits.get(pluginId);
-                
+
                 if (limits != null) {
                     // Update CPU percentage
                     usage.updateCpuPercentage(usage.getCpuTimeNanos(), monitoringInterval);
-                    
+
                     // Check CPU limit
                     if (usage.getCpuPercentage() > limits.getMaxCpuPercentage()) {
                         logger.warn("Plugin {} exceeded CPU limit: current={}%, max={}%",
                                 pluginId, usage.getCpuPercentage(), limits.getMaxCpuPercentage());
-                        
+
                         // TODO: Implement CPU throttling or other mitigation
                     }
                 }
@@ -509,11 +607,11 @@ public class PluginResourceLimiter {
             Thread.currentThread().interrupt();
             monitoringExecutor.shutdownNow();
         }
-        
+
         pluginLimits.clear();
         pluginUsage.clear();
         threadToPluginId.clear();
-        
+
         logger.info("Plugin resource limiter shut down");
     }
 }

@@ -43,6 +43,7 @@ public class DefaultPluginManager implements PluginManager {
      * @param extensionRegistry the extension registry
      * @param eventBus the plugin event bus
      * @param pluginLoader the plugin loader
+     * @param dependencyResolver the plugin dependency resolver
      */
     @Autowired
     public DefaultPluginManager(

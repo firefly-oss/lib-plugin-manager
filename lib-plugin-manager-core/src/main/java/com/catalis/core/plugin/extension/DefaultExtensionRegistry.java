@@ -19,12 +19,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Component
 public class DefaultExtensionRegistry implements ExtensionRegistry {
 
+    private static final Logger logger = LoggerFactory.getLogger(DefaultExtensionRegistry.class);
+
     /**
      * Creates a new DefaultExtensionRegistry.
      * Initializes the internal data structures for tracking extension points and extensions.
      */
-
-    private static final Logger logger = LoggerFactory.getLogger(DefaultExtensionRegistry.class);
+    public DefaultExtensionRegistry() {
+        // Initialize the internal data structures
+    }
 
     private final Map<String, Class<?>> extensionPoints = new ConcurrentHashMap<>();
     private final Map<String, CopyOnWriteArrayList<ExtensionEntry<?>>> extensions = new ConcurrentHashMap<>();

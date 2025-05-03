@@ -20,6 +20,9 @@ public class PluginManagerProperties {
     /**
      * Creates a new PluginManagerProperties instance with default values.
      */
+    public PluginManagerProperties() {
+        // Initialize with default values
+    }
 
     /**
      * The directory where plugins are stored.
@@ -84,6 +87,9 @@ public class PluginManagerProperties {
         /**
          * Creates a new EventBusProperties instance with default values.
          */
+        public EventBusProperties() {
+            // Initialize with default values
+        }
 
         /**
          * The type of event bus to use (in-memory, kafka).
@@ -167,6 +173,9 @@ public class PluginManagerProperties {
         /**
          * Creates a new KafkaProperties instance with default values.
          */
+        public KafkaProperties() {
+            // Initialize with default values
+        }
 
         /**
          * Comma-separated list of Kafka bootstrap servers.
@@ -511,6 +520,13 @@ public class PluginManagerProperties {
     public static class SecurityProperties {
 
         /**
+         * Creates a new SecurityProperties instance with default values.
+         */
+        public SecurityProperties() {
+            // Initialize with default values
+        }
+
+        /**
          * Whether to enforce security checks.
          */
         private boolean enforceSecurityChecks = true;
@@ -701,6 +717,13 @@ public class PluginManagerProperties {
     public static class PluginSecurityProperties {
 
         /**
+         * Creates a new PluginSecurityProperties instance with default values.
+         */
+        public PluginSecurityProperties() {
+            // Initialize with default values
+        }
+
+        /**
          * Whether to allow file system access.
          */
         private Boolean allowFileAccess;
@@ -797,6 +820,13 @@ public class PluginManagerProperties {
      * Configuration properties for resource limits.
      */
     public static class ResourceProperties {
+
+        /**
+         * Creates a new ResourceProperties instance with default values.
+         */
+        public ResourceProperties() {
+            // Initialize with default values
+        }
 
         /**
          * Whether to enforce resource limits.
@@ -966,6 +996,13 @@ public class PluginManagerProperties {
     public static class PluginResourceProperties {
 
         /**
+         * Creates a new PluginResourceProperties instance with default values.
+         */
+        public PluginResourceProperties() {
+            // Initialize with default values
+        }
+
+        /**
          * Maximum memory usage in megabytes.
          */
         private Integer maxMemoryMb;
@@ -1085,6 +1122,13 @@ public class PluginManagerProperties {
      * Configuration properties for hot deployment.
      */
     public static class HotDeploymentProperties {
+
+        /**
+         * Creates a new HotDeploymentProperties instance with default values.
+         */
+        public HotDeploymentProperties() {
+            // Initialize with default values
+        }
 
         /**
          * Whether to enable hot deployment.
@@ -1231,6 +1275,13 @@ public class PluginManagerProperties {
     public static class HealthProperties {
 
         /**
+         * Creates a new HealthProperties instance with default values.
+         */
+        public HealthProperties() {
+            // Initialize with default values
+        }
+
+        /**
          * Whether to enable health monitoring.
          */
         private boolean enabled = true;
@@ -1375,6 +1426,13 @@ public class PluginManagerProperties {
     public static class PluginHealthProperties {
 
         /**
+         * Creates a new PluginHealthProperties instance with default values.
+         */
+        public PluginHealthProperties() {
+            // Initialize with default values
+        }
+
+        /**
          * Whether to enable health monitoring for this plugin.
          */
         private Boolean enabled;
@@ -1448,6 +1506,13 @@ public class PluginManagerProperties {
      * Configuration properties for the plugin debugger.
      */
     public static class DebuggerProperties {
+
+        /**
+         * Creates a new DebuggerProperties instance with default values.
+         */
+        public DebuggerProperties() {
+            // Initialize with default values
+        }
 
         /**
          * Whether to enable the plugin debugger.
@@ -1684,6 +1749,13 @@ public class PluginManagerProperties {
      * Configuration properties for plugin-specific debugger settings.
      */
     public static class PluginDebuggerProperties {
+
+        /**
+         * Creates a new PluginDebuggerProperties instance with default values.
+         */
+        public PluginDebuggerProperties() {
+            // Initialize with default values
+        }
 
         /**
          * Whether debugging is enabled for this plugin.
