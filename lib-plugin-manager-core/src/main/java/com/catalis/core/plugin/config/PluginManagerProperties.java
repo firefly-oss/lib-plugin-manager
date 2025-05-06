@@ -13,7 +13,6 @@ import java.util.Map;
  * Configuration properties for the plugin manager.
  * This class defines the configuration properties that can be set in application.properties or application.yml.
  */
-@Component
 @ConfigurationProperties(prefix = "firefly.plugin-manager")
 public class PluginManagerProperties {
 

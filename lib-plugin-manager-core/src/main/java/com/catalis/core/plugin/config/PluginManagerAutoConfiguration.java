@@ -130,8 +130,13 @@ public class PluginManagerAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public PluginLoader pluginLoader() {
-        return new DefaultPluginLoader();
+    public PluginLoader pluginLoader(
+            PluginManagerProperties properties,
+            PluginSecurityManager securityManager,
+            PluginResourceLimiter resourceLimiter,
+            PluginSignatureVerifier signatureVerifier
+    ) {
+        return new DefaultPluginLoader(properties, securityManager, resourceLimiter, signatureVerifier);
     }
 
     /**
