@@ -1,6 +1,6 @@
 # Firefly Plugin Manager
 
-A modular plugin system for extending Firefly Core Banking Platform functionality.
+A flexible, reactive plugin system for extending the Firefly Core Banking Platform with custom functionality.
 
 ## Table of Contents
 
@@ -11,11 +11,11 @@ A modular plugin system for extending Firefly Core Banking Platform functionalit
   - [Extension](#extension)
   - [Plugin Lifecycle](#plugin-lifecycle)
 - [Architecture](#architecture)
-  - [Utility Classes](#utility-classes)
   - [Plugin Registry](#plugin-registry)
   - [Extension Registry](#extension-registry)
   - [Event Bus](#event-bus)
   - [Plugin Loader](#plugin-loader)
+  - [Utility Classes](#utility-classes)
 - [Extension Points in Microservices](#extension-points-in-microservices)
   - [Defining Extension Points](#defining-extension-points)
   - [Microservice-Plugin Relationship](#microservice-plugin-relationship)
@@ -25,28 +25,18 @@ A modular plugin system for extending Firefly Core Banking Platform functionalit
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
   - [Basic Usage](#basic-usage)
-    - [Plugin Installation Methods](#plugin-installation-methods)
-    - [Auto-detection with Annotation-based Plugins](#auto-detection-with-annotation-based-plugins)
+  - [Plugin Installation Methods](#plugin-installation-methods)
+  - [Auto-detection with Annotation-based Plugins](#auto-detection-with-annotation-based-plugins)
 - [Developing Plugins](#developing-plugins)
   - [Understanding the Plugin Contract](#understanding-the-plugin-contract)
   - [Step 1: Define an Extension Point](#step-1-define-an-extension-point)
   - [Step 2: Create a Plugin with Extensions](#step-2-create-a-plugin-with-extensions)
   - [Step 3: Plugin Configuration](#step-3-plugin-configuration)
-    - [Updating Plugin Configuration](#updating-plugin-configuration)
-    - [Configuration Sources](#configuration-sources)
   - [Step 4: Event-Based Communication](#step-4-event-based-communication)
   - [Step 5: Package the Plugin](#step-5-package-the-plugin)
 - [Configuration](#configuration)
   - [Event Bus Configuration](#event-bus-configuration)
-    - [Choosing an Event Bus Implementation](#choosing-an-event-bus-implementation)
-    - [In-Memory Event Bus (Default)](#in-memory-event-bus-default)
-    - [Kafka Event Bus (Optional)](#kafka-event-bus-optional)
-    - [Event Serialization for Kafka](#event-serialization-for-kafka)
-    - [Custom Serialization](#custom-serialization)
-    - [Event Bus Architecture](#event-bus-architecture)
-    - [Event Bus Best Practices](#event-bus-best-practices)
-    - [Switching Between Event Bus Implementations](#switching-between-event-bus-implementations)
-    - [Monitoring and Troubleshooting](#monitoring-and-troubleshooting)
+  - [Security Configuration](#security-configuration)
 - [Security Considerations](#security-considerations)
   - [Class Loading Isolation](#class-loading-isolation)
   - [Permission System](#permission-system)
@@ -72,65 +62,92 @@ A modular plugin system for extending Firefly Core Banking Platform functionalit
 
 ## Overview
 
-The Firefly Plugin Manager provides a standardized way to develop and manage plugins to extend core functionality of the Firefly Platform. It is built on Spring Boot 3.2.2, WebFlux, and Java 21, using reactive programming principles. This framework enables financial institutions to extend and customize the Firefly platform without modifying the core codebase, ensuring stability, security, and maintainability.
+The Firefly Plugin Manager is a comprehensive framework that enables modular extension of the Firefly Core Banking Platform through a flexible plugin architecture. Built on modern technologies and reactive programming principles, it allows financial institutions to customize and extend platform functionality without modifying the core codebase.
+
+### Key Features
+
+- **Modular Architecture**: Cleanly separate core functionality from extensions
+- **Reactive Design**: Built on Spring WebFlux and Project Reactor for non-blocking operations
+- **Dynamic Loading**: Install, update, and uninstall plugins at runtime without system restarts
+- **Secure Execution**: Run plugins in isolated environments with configurable security boundaries
+- **Event-Driven Communication**: Plugins communicate through a reactive event bus (in-memory or Kafka)
+- **Dependency Management**: Automatic resolution of plugin dependencies
+- **Multiple Installation Methods**: Install plugins from JAR files, Git repositories, or classpath
+- **Health Monitoring**: Track plugin health and resource usage
+- **Debugging Support**: Debug plugins at runtime with breakpoints and variable inspection
+
+### Technical Foundation
+
+- **Java 21**: Leverages the latest Java features for improved performance and developer productivity
+- **Spring Boot 3.2.2**: Built on the Spring ecosystem for enterprise-grade reliability
+- **WebFlux**: Uses reactive programming for efficient resource utilization
+- **Multi-Module Maven Structure**: Organized in a modular structure for better maintainability
+
+The Plugin Manager serves as the bridge between core microservices and custom extensions, enabling a truly extensible platform while maintaining system stability, security, and performance.
 
 ## Core Concepts
 
+The Firefly Plugin Manager is built around four fundamental concepts that work together to create a flexible, modular system.
+
 ### Plugin
 
-A plugin is a self-contained module that encapsulates specific functionality and can be dynamically loaded, started, stopped, and unloaded at runtime without requiring a system restart. Each plugin:
+A plugin is a self-contained module that encapsulates specific functionality and can be dynamically managed at runtime.
 
-- Has a unique identity and metadata (ID, name, version, description, author)
-- Follows a well-defined lifecycle (installed → initialized → started → stopped → uninstalled)
-- Can depend on other plugins, creating a dependency graph
-- Can provide one or more extensions to extend the core system's functionality
-- Has its own configuration that can be modified at runtime
-- Can be isolated from other plugins to prevent interference
+**Key characteristics:**
 
-Plugins are the primary unit of modularity in the system, allowing for a clean separation of concerns and enabling third-party developers to extend the platform without access to the core codebase.
+- **Self-contained**: Packages all necessary code and resources in a single deployable unit
+- **Identifiable**: Has unique metadata (ID, name, version, description, author)
+- **Lifecycle-managed**: Can be installed, initialized, started, stopped, and uninstalled without system restarts
+- **Configurable**: Has its own configuration that can be modified at runtime
+- **Dependency-aware**: Can depend on other plugins, creating a managed dependency graph
+- **Isolated**: Runs in its own class loader to prevent interference with other plugins
+- **Extension provider**: Contributes one or more extensions to the system
+
+Plugins enable clean separation of concerns and allow third-party developers to extend the platform without modifying core code.
 
 ### Extension Point
 
-An extension point is a contract (typically an interface) that is defined within a core microservice and specifies how that microservice can be extended. Extension points:
+An extension point defines a contract (interface) that specifies how a core microservice can be extended.
 
-- Are defined in core microservices (like core-banking-cards, core-banking-accounts)
-- Define a clear API that extensions must implement
-- Are identified by a unique ID
-- Can specify whether they allow single or multiple implementations
-- Provide metadata about their purpose and requirements
-- Can be discovered dynamically at runtime
+**Key characteristics:**
 
-Extension points are the foundation of the plugin system's flexibility, as they define the "slots" where plugins can "plug in" their functionality. They represent the stable API that both the core microservices and plugins can rely on. By defining extension points within the core microservices, the system ensures that extensions are properly integrated with the core functionality while maintaining separation of concerns.
+- **Contract-based**: Defines a clear API that extensions must implement
+- **Microservice-owned**: Defined within core microservices (e.g., core-banking-cards)
+- **Identifiable**: Has a unique ID for discovery and reference
+- **Configurable**: Can specify whether it allows single or multiple implementations
+- **Discoverable**: Can be found dynamically at runtime
+- **Stable**: Represents a long-term API contract between core and extensions
+
+Extension points are the "slots" where plugins can "plug in" their functionality, creating a stable API that both core microservices and plugins can rely on.
 
 ### Extension
 
-An extension is a concrete implementation of an extension point provided by a plugin. Extensions:
+An extension is a concrete implementation of an extension point provided by a plugin.
 
-- Implement the contract defined by an extension point in a core microservice
-- Are associated with a specific plugin
-- Can have a priority to determine their order when multiple extensions exist
-- Can be discovered and used dynamically at runtime by core microservices
-- Can be enabled or disabled independently of their plugin
+**Key characteristics:**
 
-Extensions are how plugins actually contribute functionality to the core microservices. They represent the "plugs" that fit into the "slots" defined by extension points. When a core microservice needs to use extended functionality, it queries the Plugin Manager for all available implementations of a specific extension point, and then uses those implementations to enhance its capabilities.
+- **Implementation**: Provides concrete functionality for an extension point
+- **Plugin-associated**: Belongs to a specific plugin
+- **Prioritized**: Can have a priority to determine order when multiple extensions exist
+- **Discoverable**: Can be found and used dynamically at runtime
+- **Independently manageable**: Can be enabled or disabled separately from its plugin
+
+Extensions are how plugins actually contribute functionality to core microservices. When a microservice needs extended functionality, it queries the Plugin Manager for implementations of a specific extension point.
 
 ### Plugin Lifecycle
 
-Plugins follow a well-defined lifecycle that allows the system to manage them properly:
+Plugins follow a well-defined lifecycle with clear state transitions:
 
-1. **INSTALLED**: The plugin has been loaded into the system but not yet initialized. Its classes are available, but it's not ready for use.
-
-2. **INITIALIZED**: The plugin has been initialized and its resources have been allocated, but it's not actively providing functionality yet. This state allows for setup tasks that need to happen before the plugin starts.
-
-3. **STARTED**: The plugin is active and its extensions are available for use. It may be running background tasks or providing services.
-
-4. **STOPPED**: The plugin has been temporarily deactivated. Its extensions are no longer available, but it remains initialized and can be quickly restarted.
-
-5. **FAILED**: The plugin encountered an error during initialization, starting, or operation. This state indicates that intervention is needed.
-
-6. **UNINSTALLED**: The plugin has been completely removed from the system. Its classes are unloaded and its resources are released.
+1. **INSTALLED**: Plugin is loaded but not initialized; classes are available but not ready for use
+2. **INITIALIZED**: Resources are allocated and setup is complete, but functionality is not yet active
+3. **STARTED**: Plugin is active and its extensions are available for use
+4. **STOPPED**: Plugin is temporarily deactivated but remains initialized for quick restart
+5. **FAILED**: Plugin encountered an error during operation and needs intervention
+6. **UNINSTALLED**: Plugin is completely removed from the system; classes are unloaded and resources released
 
 Each state transition triggers events that other components can observe and react to, enabling coordinated behavior across the system.
+
+![Plugin Lifecycle](https://mermaid.ink/img/pako:eNp1kU1PwzAMhv9KlBMgdYceurJNQkgcEBInLiE4pKm7RuRLiVuQpv13nK5lH4hL7Md-_dp2wbQzyCJWrXtxDRpHb6qqUZu9c-0Ij1a3Dj7QwNNzDZtqtYLnGvZwgNUaXo9HWK_hDQyYkYOzFj2EwcDOdMpbpXvT2R4-jbKuR3hXygzw4bpRwZvSrUMfhkFZC0fTWvTpvbKm7dGHkFYYfFc2JlCmV05hCMPgfVc2BNWbXrXGhTT5H6ZQXQhdOCnVYpjCKWQnpVqMX3D-OeRnpVqM33AxhPxHqRZjmOcfQ8gvSrUYw_zzGPKrUi3GMC8-h5DflGoxhnn5NYT8rlSLMcyrnyHkD6VajGFe_w4hfyrVYgzz5m8I-UupFmOYt-dDyN9KtRjDvLscQv5RqsW4mCEWB9Oj5tKmzZJFmU9ZlPNMFHmR8yLlWZYWaZoXRcYzTrPdNOPTXZFNWZTwNOdpmuVZmvM0y1Ke8N0uSbJkN-VRzfcYo5P_AZNFxQA?type=png)
 
 ## Architecture
 
