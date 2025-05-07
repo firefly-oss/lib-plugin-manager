@@ -1,8 +1,12 @@
 package com.catalis.core.plugin.loader;
 
 import com.catalis.core.plugin.api.Plugin;
+import com.catalis.core.plugin.config.PluginManagerProperties;
+import org.eclipse.jgit.api.CloneCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.transport.CredentialsProvider;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -24,14 +28,17 @@ public class GitPluginLoader implements PluginLoader {
     private static final Logger logger = LoggerFactory.getLogger(GitPluginLoader.class);
     private final DefaultPluginLoader defaultPluginLoader;
     private final Path tempDirectory;
+    private final PluginManagerProperties properties;
 
     /**
      * Creates a new GitPluginLoader.
      *
      * @param defaultPluginLoader the default plugin loader to delegate to after cloning
+     * @param properties the plugin manager properties
      */
-    public GitPluginLoader(DefaultPluginLoader defaultPluginLoader) {
+    public GitPluginLoader(DefaultPluginLoader defaultPluginLoader, PluginManagerProperties properties) {
         this.defaultPluginLoader = defaultPluginLoader;
+        this.properties = properties;
 
         // Create a temporary directory for cloning repositories
         try {
@@ -84,11 +91,61 @@ public class GitPluginLoader implements PluginLoader {
 
             // Clone the repository
             logger.info("Cloning repository {} to {}", repositoryUri, repoDir);
-            Git git = Git.cloneRepository()
+
+            // Get Git configuration from properties
+            PluginManagerProperties.GitProperties gitProps = properties.getGit();
+
+            // Create clone command
+            CloneCommand cloneCommand = Git.cloneRepository()
                     .setURI(repositoryUri.toString())
                     .setDirectory(repoDir.toFile())
-                    .setBranch(branch != null ? branch : "main") // Default to 'main'
-                    .call();
+                    .setBranch(branch != null ? branch : gitProps.getDefaultBranch());
+
+            // Configure authentication based on the authentication type
+            String authType = gitProps.getAuthenticationType();
+            if ("basic".equalsIgnoreCase(authType)) {
+                // Basic authentication (username/password)
+                String username = gitProps.getUsername();
+                String password = gitProps.getPassword();
+                if (username != null && password != null) {
+                    logger.debug("Using basic authentication for Git repository");
+                    CredentialsProvider credentialsProvider = new UsernamePasswordCredentialsProvider(username, password);
+                    cloneCommand.setCredentialsProvider(credentialsProvider);
+                } else {
+                    logger.warn("Basic authentication configured but username or password is missing");
+                }
+            } else if ("token".equalsIgnoreCase(authType)) {
+                // Token-based authentication
+                String token = gitProps.getAccessToken();
+                if (token != null) {
+                    logger.debug("Using token-based authentication for Git repository");
+                    CredentialsProvider credentialsProvider = new UsernamePasswordCredentialsProvider(token, "");
+                    cloneCommand.setCredentialsProvider(credentialsProvider);
+                } else {
+                    logger.warn("Token authentication configured but access token is missing");
+                }
+            } else if ("ssh".equalsIgnoreCase(authType)) {
+                // SSH authentication
+                Path privateKeyPath = gitProps.getPrivateKeyPath();
+                if (privateKeyPath != null && Files.exists(privateKeyPath)) {
+                    logger.warn("SSH authentication is not fully supported yet. Consider using token-based authentication instead.");
+                    logger.warn("For GitHub repositories, you can create a personal access token and use token-based authentication.");
+                    logger.warn("For GitLab repositories, you can use deploy tokens or personal access tokens.");
+                } else {
+                    logger.warn("SSH authentication configured but private key path is missing or invalid");
+                }
+            } else if (!"none".equalsIgnoreCase(authType)) {
+                logger.warn("Unsupported authentication type: {}. Using no authentication.", authType);
+            }
+
+            // Set timeout
+            int timeoutSeconds = gitProps.getTimeoutSeconds();
+            if (timeoutSeconds > 0) {
+                cloneCommand.setTimeout(timeoutSeconds);
+            }
+
+            // Execute the clone command
+            Git git = cloneCommand.call();
 
             try {
                 // Look for a plugin JAR in the repository

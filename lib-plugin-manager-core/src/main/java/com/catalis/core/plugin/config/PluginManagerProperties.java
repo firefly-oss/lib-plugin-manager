@@ -74,6 +74,11 @@ public class PluginManagerProperties {
     private HealthProperties health = new HealthProperties();
 
     /**
+     * Git repository configuration.
+     */
+    private GitProperties git = new GitProperties();
+
+    /**
      * Debugger configuration.
      */
     private DebuggerProperties debugger = new DebuggerProperties();
@@ -511,6 +516,24 @@ public class PluginManagerProperties {
      */
     public void setDebugger(DebuggerProperties debugger) {
         this.debugger = debugger;
+    }
+
+    /**
+     * Gets the Git properties.
+     *
+     * @return the Git properties
+     */
+    public GitProperties getGit() {
+        return git;
+    }
+
+    /**
+     * Sets the Git properties.
+     *
+     * @param git the Git properties
+     */
+    public void setGit(GitProperties git) {
+        this.git = git;
     }
 
     /**
@@ -1741,6 +1764,227 @@ public class PluginManagerProperties {
          */
         public void setPlugins(Map<String, PluginDebuggerProperties> plugins) {
             this.plugins = plugins;
+        }
+    }
+
+    /**
+     * Configuration properties for Git repositories.
+     */
+    public static class GitProperties {
+
+        /**
+         * Creates a new GitProperties instance with default values.
+         */
+        public GitProperties() {
+            // Initialize with default values
+        }
+
+        /**
+         * Authentication type for Git repositories.
+         * Possible values: none, basic, ssh, token
+         */
+        private String authenticationType = "none";
+
+        /**
+         * Username for basic authentication.
+         */
+        private String username;
+
+        /**
+         * Password for basic authentication.
+         */
+        private String password;
+
+        /**
+         * Path to the private key file for SSH authentication.
+         */
+        private Path privateKeyPath;
+
+        /**
+         * Passphrase for the private key.
+         */
+        private String privateKeyPassphrase;
+
+        /**
+         * Personal access token for token-based authentication.
+         */
+        private String accessToken;
+
+        /**
+         * Whether to verify SSL certificates.
+         */
+        private boolean verifySsl = true;
+
+        /**
+         * Default branch to use when not specified.
+         */
+        private String defaultBranch = "main";
+
+        /**
+         * Timeout in seconds for Git operations.
+         */
+        private int timeoutSeconds = 60;
+
+        /**
+         * Gets the authentication type.
+         *
+         * @return the authentication type
+         */
+        public String getAuthenticationType() {
+            return authenticationType;
+        }
+
+        /**
+         * Sets the authentication type.
+         *
+         * @param authenticationType the authentication type
+         */
+        public void setAuthenticationType(String authenticationType) {
+            this.authenticationType = authenticationType;
+        }
+
+        /**
+         * Gets the username.
+         *
+         * @return the username
+         */
+        public String getUsername() {
+            return username;
+        }
+
+        /**
+         * Sets the username.
+         *
+         * @param username the username
+         */
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        /**
+         * Gets the password.
+         *
+         * @return the password
+         */
+        public String getPassword() {
+            return password;
+        }
+
+        /**
+         * Sets the password.
+         *
+         * @param password the password
+         */
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        /**
+         * Gets the private key path.
+         *
+         * @return the private key path
+         */
+        public Path getPrivateKeyPath() {
+            return privateKeyPath;
+        }
+
+        /**
+         * Sets the private key path.
+         *
+         * @param privateKeyPath the private key path
+         */
+        public void setPrivateKeyPath(Path privateKeyPath) {
+            this.privateKeyPath = privateKeyPath;
+        }
+
+        /**
+         * Gets the private key passphrase.
+         *
+         * @return the private key passphrase
+         */
+        public String getPrivateKeyPassphrase() {
+            return privateKeyPassphrase;
+        }
+
+        /**
+         * Sets the private key passphrase.
+         *
+         * @param privateKeyPassphrase the private key passphrase
+         */
+        public void setPrivateKeyPassphrase(String privateKeyPassphrase) {
+            this.privateKeyPassphrase = privateKeyPassphrase;
+        }
+
+        /**
+         * Gets the access token.
+         *
+         * @return the access token
+         */
+        public String getAccessToken() {
+            return accessToken;
+        }
+
+        /**
+         * Sets the access token.
+         *
+         * @param accessToken the access token
+         */
+        public void setAccessToken(String accessToken) {
+            this.accessToken = accessToken;
+        }
+
+        /**
+         * Gets whether to verify SSL certificates.
+         *
+         * @return whether to verify SSL certificates
+         */
+        public boolean isVerifySsl() {
+            return verifySsl;
+        }
+
+        /**
+         * Sets whether to verify SSL certificates.
+         *
+         * @param verifySsl whether to verify SSL certificates
+         */
+        public void setVerifySsl(boolean verifySsl) {
+            this.verifySsl = verifySsl;
+        }
+
+        /**
+         * Gets the default branch.
+         *
+         * @return the default branch
+         */
+        public String getDefaultBranch() {
+            return defaultBranch;
+        }
+
+        /**
+         * Sets the default branch.
+         *
+         * @param defaultBranch the default branch
+         */
+        public void setDefaultBranch(String defaultBranch) {
+            this.defaultBranch = defaultBranch;
+        }
+
+        /**
+         * Gets the timeout in seconds.
+         *
+         * @return the timeout in seconds
+         */
+        public int getTimeoutSeconds() {
+            return timeoutSeconds;
+        }
+
+        /**
+         * Sets the timeout in seconds.
+         *
+         * @param timeoutSeconds the timeout in seconds
+         */
+        public void setTimeoutSeconds(int timeoutSeconds) {
+            this.timeoutSeconds = timeoutSeconds;
         }
     }
 
