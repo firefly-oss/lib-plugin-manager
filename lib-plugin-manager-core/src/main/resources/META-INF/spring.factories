@@ -1,2 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.catalis.core.plugin.config.PluginManagerAutoConfiguration
+com.firefly.core.plugin.config.PluginManagerAutoConfiguration
