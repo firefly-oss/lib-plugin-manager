@@ -1,6 +1,6 @@
 # Utility Classes Tests
 
-This package contains tests for the utility classes in the `com.catalis.core.plugin.util` package.
+This package contains tests for the utility classes in the `com.firefly.core.plugin.util` package.
 
 ## VersionUtilsTest
 

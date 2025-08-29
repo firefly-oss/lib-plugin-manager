@@ -4,7 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.catalis.document</groupId>
+    <groupId>com.firefly.document</groupId>
     <artifactId>document-mgmt-plugin</artifactId>
     <version>1.0.0</version>
     <packaging>jar</packaging>
@@ -25,7 +25,7 @@
     <dependencies>
         <!-- Plugin Manager API -->
         <dependency>
-            <groupId>com.catalis.core</groupId>
+            <groupId>com.firefly.core</groupId>
             <artifactId>lib-plugin-manager-api</artifactId>
             <version>1.0.0</version>
             <scope>provided</scope>
@@ -100,7 +100,7 @@
                             <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
                         </manifest>
                         <manifestEntries>
-                            <Plugin-Id>com.catalis.document.document-mgmt-plugin</Plugin-Id>
+                            <Plugin-Id>com.firefly.document.document-mgmt-plugin</Plugin-Id>
                             <Plugin-Version>1.0.0</Plugin-Version>
                             <Plugin-Provider>Catalis Financial Services</Plugin-Provider>
                         </manifestEntries>

@@ -87,9 +87,9 @@ Implementing extension points in your microservice involves several steps:
 ### 1. Create the Extension Point Interface
 
 ```java
-package com.catalis.banking.accounts;
+package com.firefly.banking.accounts;
 
-import com.catalis.core.plugin.annotation.ExtensionPoint;
+import com.firefly.core.plugin.annotation.ExtensionPoint;
 import reactor.core.publisher.Mono;
 
 /**
@@ -98,7 +98,7 @@ import reactor.core.publisher.Mono;
  * modifying the core account structure.
  */
 @ExtensionPoint(
-    id = "com.catalis.banking.accounts.account-enricher",
+    id = "com.firefly.banking.accounts.account-enricher",
     description = "Extension point for enriching account information with additional data",
     allowMultiple = true
 )
@@ -148,7 +148,7 @@ public class AccountsConfiguration {
     @Bean
     public ExtensionPoint accountEnricherExtensionPoint() {
         return new ExtensionPointImpl(
-            "com.catalis.banking.accounts.account-enricher",
+            "com.firefly.banking.accounts.account-enricher",
             "Extension point for enriching account information with additional data",
             true,
             AccountEnricher.class
@@ -205,7 +205,7 @@ public class AccountEnrichmentService {
  */
 public Mono<Account> enrichAccount(Account account) {
     return pluginManager.getExtensionRegistry()
-            .getExtensions("com.catalis.banking.accounts.account-enricher")
+            .getExtensions("com.firefly.banking.accounts.account-enricher")
             .cast(AccountEnricher.class)
             .filter(enricher -> enricher.supportsAccountType(account.getType()))
             .sort((e1, e2) -> Integer.compare(e2.getPriority(), e1.getPriority()))
@@ -230,7 +230,7 @@ Consider what should happen if no extensions are available:
  */
 public Mono<AccountEnricher> getHighestPriorityEnricher(String accountType) {
     return pluginManager.getExtensionRegistry()
-            .getExtensions("com.catalis.banking.accounts.account-enricher")
+            .getExtensions("com.firefly.banking.accounts.account-enricher")
             .cast(AccountEnricher.class)
             .filter(enricher -> enricher.supportsAccountType(accountType))
             .sort((e1, e2) -> Integer.compare(e2.getPriority(), e1.getPriority()))
@@ -311,7 +311,7 @@ class AccountEnrichmentServiceIntegrationTest {
     void testEnrichAccount() {
         // Register a test extension point
         ExtensionPoint extensionPoint = new ExtensionPointImpl(
-                "com.catalis.banking.accounts.account-enricher",
+                "com.firefly.banking.accounts.account-enricher",
                 "Test extension point",
                 true,
                 AccountEnricher.class);
@@ -320,7 +320,7 @@ class AccountEnrichmentServiceIntegrationTest {
         // Register a test extension
         TestAccountEnricher testEnricher = new TestAccountEnricher();
         extensionRegistry.registerExtension(
-                new ExtensionImpl("com.catalis.banking.accounts.account-enricher", testEnricher, 100))
+                new ExtensionImpl("com.firefly.banking.accounts.account-enricher", testEnricher, 100))
                 .block();
         
         // Create a test account
@@ -356,7 +356,7 @@ Follow these best practices when creating extension points:
 
 - Use clear, descriptive names for extension points
 - Follow a consistent naming pattern (e.g., `EntityAction`, `EntityProcessor`)
-- Use reverse-domain notation for extension point IDs (e.g., `com.catalis.banking.accounts.account-enricher`)
+- Use reverse-domain notation for extension point IDs (e.g., `com.firefly.banking.accounts.account-enricher`)
 
 ### 3. Documentation
 
@@ -387,7 +387,7 @@ Here are some real-world examples of extension points in the Firefly Platform:
 
 ```java
 @ExtensionPoint(
-    id = "com.catalis.banking.payments.payment-processor",
+    id = "com.firefly.banking.payments.payment-processor",
     description = "Extension point for payment processing services",
     allowMultiple = true
 )
@@ -427,7 +427,7 @@ public interface PaymentProcessor {
 
 ```java
 @ExtensionPoint(
-    id = "com.catalis.banking.security.fraud-detector",
+    id = "com.firefly.banking.security.fraud-detector",
     description = "Extension point for transaction fraud detection",
     allowMultiple = true
 )
@@ -472,7 +472,7 @@ public interface FraudDetector {
 
 ```java
 @ExtensionPoint(
-    id = "com.catalis.banking.notifications.customer-notifier",
+    id = "com.firefly.banking.notifications.customer-notifier",
     description = "Extension point for customer notification services",
     allowMultiple = true
 )

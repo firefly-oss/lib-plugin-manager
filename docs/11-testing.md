@@ -36,7 +36,7 @@ void testPaymentProcessorContract() {
     // Verify that the extension point is properly annotated
     ExtensionPoint annotation = PaymentProcessor.class.getAnnotation(ExtensionPoint.class);
     assertNotNull(annotation);
-    assertEquals("com.catalis.banking.payment-processor", annotation.id());
+    assertEquals("com.firefly.banking.payment-processor", annotation.id());
     assertTrue(annotation.allowMultiple());
     
     // Verify that the interface methods are well-defined
@@ -96,7 +96,7 @@ Test that the extension point can be registered with the Extension Registry:
 void testExtensionPointRegistration() {
     // Create an extension point
     ExtensionPoint extensionPoint = new ExtensionPointImpl(
-            "com.catalis.banking.payment-processor",
+            "com.firefly.banking.payment-processor",
             "Extension point for payment processing",
             true,
             PaymentProcessor.class);
@@ -109,10 +109,10 @@ void testExtensionPointRegistration() {
     
     // Verify that the extension point is registered
     ExtensionPoint registeredPoint = registry.getExtensionPoint(
-            "com.catalis.banking.payment-processor").block();
+            "com.firefly.banking.payment-processor").block();
     
     assertNotNull(registeredPoint);
-    assertEquals("com.catalis.banking.payment-processor", registeredPoint.getId());
+    assertEquals("com.firefly.banking.payment-processor", registeredPoint.getId());
     assertEquals(PaymentProcessor.class, registeredPoint.getExtensionClass());
 }
 ```
@@ -363,7 +363,7 @@ void testExtensionUsage() {
     
     // Get extensions for the payment processor extension point
     Flux<Object> extensions = pluginManager.getExtensionRegistry()
-            .getExtensions("com.catalis.banking.payment-processor");
+            .getExtensions("com.firefly.banking.payment-processor");
     
     // Verify that the extension is available
     List<Object> extensionList = extensions.collectList().block();

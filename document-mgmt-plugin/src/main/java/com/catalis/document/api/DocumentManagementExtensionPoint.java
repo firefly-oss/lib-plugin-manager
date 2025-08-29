@@ -1,6 +1,6 @@
-package com.catalis.document.api;
+package com.firefly.document.api;
 
-import com.catalis.core.plugin.annotation.ExtensionPoint;
+import com.firefly.core.plugin.annotation.ExtensionPoint;
 import reactor.core.publisher.Mono;
 
 /**
@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
  * This extension point allows plugins to implement document creation functionality.
  */
 @ExtensionPoint(
-        id = "com.catalis.document.document-management",
+        id = "com.firefly.document.document-management",
         description = "Extension point for document management operations",
         allowMultiple = true
 )

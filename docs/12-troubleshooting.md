@@ -37,13 +37,13 @@ java.io.FileNotFoundException: /path/to/plugins/my-plugin-1.0.0.jar (No such fil
 
 **Solutions**:
 - Verify that the JAR contains a class that implements the `Plugin` interface
-- Check that the plugin class is registered in `META-INF/services/com.catalis.core.plugin.api.Plugin`
+- Check that the plugin class is registered in `META-INF/services/com.firefly.core.plugin.api.Plugin`
 - Ensure the plugin class has a public constructor
 - Check for missing dependencies in the JAR
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.PluginException: No plugin found in JAR: /path/to/plugins/my-plugin-1.0.0.jar
+com.firefly.core.plugin.exception.PluginException: No plugin found in JAR: /path/to/plugins/my-plugin-1.0.0.jar
 ```
 
 ### Plugin Already Installed
@@ -57,7 +57,7 @@ com.catalis.core.plugin.exception.PluginException: No plugin found in JAR: /path
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.PluginException: Plugin already registered: com.example.my-plugin
+com.firefly.core.plugin.exception.PluginException: Plugin already registered: com.example.my-plugin
 ```
 
 ### Git Repository Issues
@@ -90,7 +90,7 @@ org.eclipse.jgit.api.errors.TransportException: https://github.com/example/my-pl
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.PluginLifecycleException: Failed to initialize plugin: com.example.my-plugin
+com.firefly.core.plugin.exception.PluginLifecycleException: Failed to initialize plugin: com.example.my-plugin
 Caused by: java.lang.NullPointerException: Cannot invoke "com.example.service.ExternalService.initialize()" because "this.service" is null
 ```
 
@@ -106,7 +106,7 @@ Caused by: java.lang.NullPointerException: Cannot invoke "com.example.service.Ex
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.PluginLifecycleException: Failed to start plugin: com.example.my-plugin
+com.firefly.core.plugin.exception.PluginLifecycleException: Failed to start plugin: com.example.my-plugin
 Caused by: java.net.ConnectException: Connection refused: connect
 ```
 
@@ -122,7 +122,7 @@ Caused by: java.net.ConnectException: Connection refused: connect
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.PluginLifecycleException: Failed to stop plugin: com.example.my-plugin
+com.firefly.core.plugin.exception.PluginLifecycleException: Failed to stop plugin: com.example.my-plugin
 Caused by: java.util.concurrent.TimeoutException: Timeout waiting for plugin to stop
 ```
 
@@ -138,7 +138,7 @@ Caused by: java.util.concurrent.TimeoutException: Timeout waiting for plugin to 
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.PluginLifecycleException: Failed to uninstall plugin: com.example.my-plugin
+com.firefly.core.plugin.exception.PluginLifecycleException: Failed to uninstall plugin: com.example.my-plugin
 Caused by: java.io.IOException: Cannot delete file: /path/to/plugins/temp/my-plugin-1.0.0.jar
 ```
 
@@ -156,7 +156,7 @@ Caused by: java.io.IOException: Cannot delete file: /path/to/plugins/temp/my-plu
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.ExtensionException: Extension point not found: com.catalis.banking.payment-processor
+com.firefly.core.plugin.exception.ExtensionException: Extension point not found: com.firefly.banking.payment-processor
 ```
 
 ### Invalid Extension Point
@@ -171,7 +171,7 @@ com.catalis.core.plugin.exception.ExtensionException: Extension point not found:
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.ExtensionException: Invalid extension point: com.catalis.banking.payment-processor
+com.firefly.core.plugin.exception.ExtensionException: Invalid extension point: com.firefly.banking.payment-processor
 ```
 
 ### Extension Point Registration Failed
@@ -186,7 +186,7 @@ com.catalis.core.plugin.exception.ExtensionException: Invalid extension point: c
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.ExtensionException: Failed to register extension point: com.catalis.banking.payment-processor
+com.firefly.core.plugin.exception.ExtensionException: Failed to register extension point: com.firefly.banking.payment-processor
 Caused by: java.lang.IllegalArgumentException: Extension point ID cannot be null or empty
 ```
 
@@ -204,8 +204,8 @@ Caused by: java.lang.IllegalArgumentException: Extension point ID cannot be null
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.ExtensionException: Failed to register extension for extension point: com.catalis.banking.payment-processor
-Caused by: java.lang.ClassCastException: class com.example.payment.CreditCardPaymentProcessor cannot be cast to class com.catalis.banking.payment.PaymentProcessor
+com.firefly.core.plugin.exception.ExtensionException: Failed to register extension for extension point: com.firefly.banking.payment-processor
+Caused by: java.lang.ClassCastException: class com.example.payment.CreditCardPaymentProcessor cannot be cast to class com.firefly.banking.payment.PaymentProcessor
 ```
 
 ### No Extensions Found
@@ -253,7 +253,7 @@ Caused by: java.net.ConnectException: Connection refused: connect
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.EventBusException: Failed to publish event to topic: payment.processed
+com.firefly.core.plugin.exception.EventBusException: Failed to publish event to topic: payment.processed
 Caused by: org.apache.kafka.common.errors.SerializationException: Can't serialize data
 ```
 
@@ -269,7 +269,7 @@ Caused by: org.apache.kafka.common.errors.SerializationException: Can't serializ
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.EventBusException: Failed to subscribe to topic: payment.processed
+com.firefly.core.plugin.exception.EventBusException: Failed to subscribe to topic: payment.processed
 ```
 
 ### Event Handler Exception
@@ -302,7 +302,7 @@ Caused by: java.lang.NullPointerException: Cannot invoke "java.util.Map.get(Obje
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.ConfigurationException: Invalid configuration: timeout must be a positive integer
+com.firefly.core.plugin.exception.ConfigurationException: Invalid configuration: timeout must be a positive integer
 ```
 
 ### Configuration Update Failed
@@ -317,7 +317,7 @@ com.catalis.core.plugin.exception.ConfigurationException: Invalid configuration:
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.PluginException: Failed to update configuration for plugin: com.example.my-plugin
+com.firefly.core.plugin.exception.PluginException: Failed to update configuration for plugin: com.example.my-plugin
 ```
 
 ### Missing Configuration
@@ -332,7 +332,7 @@ com.catalis.core.plugin.exception.PluginException: Failed to update configuratio
 
 **Example Error**:
 ```
-com.catalis.core.plugin.exception.ConfigurationException: Missing required configuration property: apiKey
+com.firefly.core.plugin.exception.ConfigurationException: Missing required configuration property: apiKey
 ```
 
 ## Classpath Issues
@@ -392,7 +392,7 @@ Enable debug logging to get more detailed information:
 # In application.yml
 logging:
   level:
-    com.catalis.core.plugin: DEBUG
+    com.firefly.core.plugin: DEBUG
 ```
 
 ### Use the Plugin Debugger

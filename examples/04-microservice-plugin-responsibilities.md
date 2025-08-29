@@ -299,14 +299,14 @@ public class TransactionExtensionConfig {
     public void registerExtensionPoints() {
         // Register the transaction validator extension point
         extensionRegistry.registerExtensionPoint(
-                "com.catalis.banking.transaction.validator",
+                "com.firefly.banking.transaction.validator",
                 TransactionValidatorExtensionPoint.class,
                 true  // Allow multiple implementations
         );
 
         // Register the transaction enricher extension point
         extensionRegistry.registerExtensionPoint(
-                "com.catalis.banking.transaction.enricher",
+                "com.firefly.banking.transaction.enricher",
                 TransactionEnricherExtensionPoint.class,
                 true  // Allow multiple implementations
         );

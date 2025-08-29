@@ -25,7 +25,7 @@ First, define the extension point interface that our plugin will implement:
 ```java
 package com.example.enrichment;
 
-import com.catalis.core.plugin.annotation.ExtensionPoint;
+import com.firefly.core.plugin.annotation.ExtensionPoint;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -182,11 +182,11 @@ Now, create the plugin class that implements the extension point:
 ```java
 package com.example.enrichment.plugin;
 
-import com.catalis.core.plugin.annotation.Extension;
-import com.catalis.core.plugin.annotation.Plugin;
-import com.catalis.core.plugin.event.PluginEventBus;
-import com.catalis.core.plugin.model.PluginMetadata;
-import com.catalis.core.plugin.spi.AbstractPlugin;
+import com.firefly.core.plugin.annotation.Extension;
+import com.firefly.core.plugin.annotation.Plugin;
+import com.firefly.core.plugin.event.PluginEventBus;
+import com.firefly.core.plugin.model.PluginMetadata;
+import com.firefly.core.plugin.spi.AbstractPlugin;
 import com.example.enrichment.CompanyEnricher;
 import com.example.enrichment.einforma.EInformaApiClient;
 import org.slf4j.Logger;
@@ -413,7 +413,7 @@ There are several ways to register the plugin:
 
 ### Option 1: Using Service Provider Interface (SPI)
 
-Create a file at `META-INF/services/com.catalis.core.plugin.api.Plugin` with the fully qualified name of your plugin class:
+Create a file at `META-INF/services/com.firefly.core.plugin.api.Plugin` with the fully qualified name of your plugin class:
 
 ```
 com.example.enrichment.plugin.EInformaCompanyEnrichmentPlugin

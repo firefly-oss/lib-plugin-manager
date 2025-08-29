@@ -107,7 +107,7 @@ Extension points are typically defined as interfaces annotated with `@ExtensionP
 
 ```java
 @ExtensionPoint(
-    id = "com.catalis.banking.payment-processor",
+    id = "com.firefly.banking.payment-processor",
     description = "Extension point for payment processing services",
     allowMultiple = true
 )
@@ -159,7 +159,7 @@ public class PaymentService {
                                       String currency, String reference) {
         
         return pluginManager.getExtensionRegistry()
-                .getExtensions("com.catalis.banking.payment-processor")
+                .getExtensions("com.firefly.banking.payment-processor")
                 .cast(PaymentProcessor.class)
                 .filter(processor -> processor.supportsPaymentMethod(paymentMethod))
                 .sort((p1, p2) -> Integer.compare(p2.getPriority(), p1.getPriority()))
@@ -189,7 +189,7 @@ Extensions are typically defined as classes annotated with `@Extension`:
 
 ```java
 @Extension(
-    extensionPointId = "com.catalis.banking.payment-processor",
+    extensionPointId = "com.firefly.banking.payment-processor",
     priority = 100,
     description = "Processes credit card payments"
 )

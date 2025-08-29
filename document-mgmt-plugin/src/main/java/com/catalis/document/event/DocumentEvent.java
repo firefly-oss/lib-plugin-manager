@@ -1,7 +1,7 @@
-package com.catalis.document.event;
+package com.firefly.document.event;
 
-import com.catalis.core.plugin.event.PluginEvent;
-import com.catalis.document.api.Document;
+import com.firefly.core.plugin.event.PluginEvent;
+import com.firefly.document.api.Document;
 
 /**
  * Base class for document-related events.

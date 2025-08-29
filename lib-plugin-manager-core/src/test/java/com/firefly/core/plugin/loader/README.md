@@ -40,7 +40,7 @@ private void createTestJar(File jarFile) throws IOException {
         jos.closeEntry();
         
         // Add a service provider configuration file
-        entry = new JarEntry("META-INF/services/com.catalis.core.plugin.api.Plugin");
+        entry = new JarEntry("META-INF/services/com.firefly.core.plugin.api.Plugin");
         jos.putNextEntry(entry);
         jos.write("com.example.MockPlugin".getBytes());
         jos.closeEntry();

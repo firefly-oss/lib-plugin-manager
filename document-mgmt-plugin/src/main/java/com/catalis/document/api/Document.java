@@ -1,4 +1,4 @@
-package com.catalis.document.api;
+package com.firefly.document.api;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;

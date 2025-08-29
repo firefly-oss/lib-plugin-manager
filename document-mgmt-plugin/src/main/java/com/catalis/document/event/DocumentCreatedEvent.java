@@ -1,6 +1,6 @@
-package com.catalis.document.event;
+package com.firefly.document.event;
 
-import com.catalis.document.api.Document;
+import com.firefly.document.api.Document;
 
 /**
  * Event published when a document is successfully created.

@@ -46,7 +46,7 @@ To create a document using the plugin:
 PluginManager pluginManager = ... // Inject or obtain the plugin manager
 
 // Get all document management extensions
-pluginManager.getExtensions("com.catalis.document.document-management", DocumentManagementExtensionPoint.class)
+pluginManager.getExtensions("com.firefly.document.document-management", DocumentManagementExtensionPoint.class)
     .flatMap(extension -> {
         // Create a document
         Document document = new Document(
@@ -91,7 +91,7 @@ This plugin implements the `DocumentManagementExtensionPoint` extension point:
 
 ```java
 @ExtensionPoint(
-        id = "com.catalis.document.document-management",
+        id = "com.firefly.document.document-management",
         description = "Extension point for document management operations",
         allowMultiple = true
 )

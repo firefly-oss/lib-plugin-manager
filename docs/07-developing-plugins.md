@@ -68,7 +68,7 @@ Create a Maven project with the following structure:
     <dependencies>
         <!-- Firefly Plugin Manager API -->
         <dependency>
-            <groupId>com.catalis.core</groupId>
+            <groupId>com.firefly.core</groupId>
             <artifactId>lib-plugin-manager-api</artifactId>
             <version>${firefly.plugin.manager.version}</version>
             <scope>provided</scope>
@@ -76,7 +76,7 @@ Create a Maven project with the following structure:
         
         <!-- Extension Point Interfaces -->
         <dependency>
-            <groupId>com.catalis.banking</groupId>
+            <groupId>com.firefly.banking</groupId>
             <artifactId>core-banking-payments</artifactId>
             <version>1.0.0</version>
             <scope>provided</scope>
@@ -140,10 +140,10 @@ Create the main plugin class that extends `AbstractPlugin`:
 ```java
 package com.example.payment;
 
-import com.catalis.core.plugin.annotation.Plugin;
-import com.catalis.core.plugin.event.PluginEventBus;
-import com.catalis.core.plugin.model.PluginMetadata;
-import com.catalis.core.plugin.spi.AbstractPlugin;
+import com.firefly.core.plugin.annotation.Plugin;
+import com.firefly.core.plugin.event.PluginEventBus;
+import com.firefly.core.plugin.model.PluginMetadata;
+import com.firefly.core.plugin.spi.AbstractPlugin;
 import com.example.payment.service.PaymentGatewayClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -327,7 +327,7 @@ First, identify the extension point you want to implement:
 ```java
 // From the core-banking-payments microservice
 @ExtensionPoint(
-    id = "com.catalis.banking.payment-processor",
+    id = "com.firefly.banking.payment-processor",
     description = "Extension point for payment processing services",
     allowMultiple = true
 )
@@ -348,8 +348,8 @@ Create a class that implements the extension point:
 ```java
 package com.example.payment.extension;
 
-import com.catalis.banking.payment.PaymentProcessor;
-import com.catalis.core.plugin.annotation.Extension;
+import com.firefly.banking.payment.PaymentProcessor;
+import com.firefly.core.plugin.annotation.Extension;
 import com.example.payment.service.PaymentGatewayClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -362,7 +362,7 @@ import java.util.Set;
  * Implementation of the PaymentProcessor extension point for credit card payments.
  */
 @Extension(
-    extensionPointId = "com.catalis.banking.payment-processor",
+    extensionPointId = "com.firefly.banking.payment-processor",
     priority = 100,
     description = "Processes credit card payments"
 )
@@ -416,7 +416,7 @@ public Mono<Void> initialize() {
     // Register the extension
     return getPluginManager().getExtensionRegistry()
             .registerExtension(new ExtensionImpl(
-                    "com.catalis.banking.payment-processor",
+                    "com.firefly.banking.payment-processor",
                     paymentProcessor,
                     100))
             .then(gatewayClient.initialize());
@@ -600,7 +600,7 @@ Packaging your plugin for deployment involves several steps:
 
 ### 1. Create a Service Provider Configuration
 
-Create a file at `src/main/resources/META-INF/services/com.catalis.core.plugin.api.Plugin` with the fully qualified name of your plugin class:
+Create a file at `src/main/resources/META-INF/services/com.firefly.core.plugin.api.Plugin` with the fully qualified name of your plugin class:
 
 ```
 com.example.payment.CreditCardPaymentPlugin

@@ -27,15 +27,15 @@ First, let's look at the extension point defined in the core microservice:
 
 ```java
 // In the core-banking-payments microservice
-package com.catalis.banking.payment;
+package com.firefly.banking.payment;
 
-import com.catalis.core.plugin.annotation.ExtensionPoint;
+import com.firefly.core.plugin.annotation.ExtensionPoint;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 
 @ExtensionPoint(
-    id = "com.catalis.banking.payment-processor",
+    id = "com.firefly.banking.payment-processor",
     description = "Extension point for payment processing services",
     allowMultiple = true
 )
@@ -76,10 +76,10 @@ Now, let's create the main plugin class:
 ```java
 package com.example.payment;
 
-import com.catalis.core.plugin.annotation.Plugin;
-import com.catalis.core.plugin.event.PluginEventBus;
-import com.catalis.core.plugin.model.PluginMetadata;
-import com.catalis.core.plugin.spi.AbstractPlugin;
+import com.firefly.core.plugin.annotation.Plugin;
+import com.firefly.core.plugin.event.PluginEventBus;
+import com.firefly.core.plugin.model.PluginMetadata;
+import com.firefly.core.plugin.spi.AbstractPlugin;
 import com.example.payment.service.PaymentGatewayClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -151,8 +151,8 @@ Next, let's implement the `PaymentProcessor` extension point:
 ```java
 package com.example.payment.extension;
 
-import com.catalis.banking.payment.PaymentProcessor;
-import com.catalis.core.plugin.annotation.Extension;
+import com.firefly.banking.payment.PaymentProcessor;
+import com.firefly.core.plugin.annotation.Extension;
 import com.example.payment.service.PaymentGatewayClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,7 +162,7 @@ import java.math.BigDecimal;
 import java.util.Set;
 
 @Extension(
-    extensionPointId = "com.catalis.banking.payment-processor",
+    extensionPointId = "com.firefly.banking.payment-processor",
     priority = 100,
     description = "Processes credit card payments"
 )
@@ -275,7 +275,7 @@ public Mono<Void> initialize() {
     // Register the extension
     return getPluginManager().getExtensionRegistry()
             .registerExtension(new ExtensionImpl(
-                    "com.catalis.banking.payment-processor",
+                    "com.firefly.banking.payment-processor",
                     paymentProcessor,
                     100))
             .then(gatewayClient.initialize());
@@ -300,7 +300,7 @@ public class PaymentService {
                                       String currency, String reference) {
 
         return pluginManager.getExtensionRegistry()
-                .getExtensions("com.catalis.banking.payment-processor")
+                .getExtensions("com.firefly.banking.payment-processor")
                 .cast(PaymentProcessor.class)
                 .filter(processor -> processor.supportsPaymentMethod(paymentMethod))
                 .sort((p1, p2) -> Integer.compare(p2.getPriority(), p1.getPriority()))
@@ -339,16 +339,16 @@ First, let's look at the extension point defined in the core microservice:
 
 ```java
 // In the core-banking-security microservice
-package com.catalis.banking.security;
+package com.firefly.banking.security;
 
-import com.catalis.core.plugin.annotation.ExtensionPoint;
+import com.firefly.core.plugin.annotation.ExtensionPoint;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.Map;
 
 @ExtensionPoint(
-    id = "com.catalis.banking.security.fraud-detector",
+    id = "com.firefly.banking.security.fraud-detector",
     description = "Extension point for transaction fraud detection",
     allowMultiple = true
 )
@@ -394,7 +394,7 @@ public interface FraudDetector {
 Let's create a class to represent the fraud detection result:
 
 ```java
-package com.catalis.banking.security;
+package com.firefly.banking.security;
 
 public class FraudDetectionResult {
 
@@ -436,10 +436,10 @@ Now, let's create the main plugin class:
 ```java
 package com.example.fraud;
 
-import com.catalis.core.plugin.annotation.Plugin;
-import com.catalis.core.plugin.event.PluginEventBus;
-import com.catalis.core.plugin.model.PluginMetadata;
-import com.catalis.core.plugin.spi.AbstractPlugin;
+import com.firefly.core.plugin.annotation.Plugin;
+import com.firefly.core.plugin.event.PluginEventBus;
+import com.firefly.core.plugin.model.PluginMetadata;
+import com.firefly.core.plugin.spi.AbstractPlugin;
 import com.example.fraud.service.MachineLearningModelService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -511,9 +511,9 @@ Next, let's implement the `FraudDetector` extension point:
 ```java
 package com.example.fraud.extension;
 
-import com.catalis.banking.security.FraudDetector;
-import com.catalis.banking.security.FraudDetectionResult;
-import com.catalis.core.plugin.annotation.Extension;
+import com.firefly.banking.security.FraudDetector;
+import com.firefly.banking.security.FraudDetectionResult;
+import com.firefly.core.plugin.annotation.Extension;
 import com.example.fraud.service.MachineLearningModelService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -523,7 +523,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 @Extension(
-    extensionPointId = "com.catalis.banking.security.fraud-detector",
+    extensionPointId = "com.firefly.banking.security.fraud-detector",
     priority = 100,
     description = "Detects fraud using machine learning"
 )
@@ -698,7 +698,7 @@ public Mono<Void> initialize() {
     // Register the extension
     return getPluginManager().getExtensionRegistry()
             .registerExtension(new ExtensionImpl(
-                    "com.catalis.banking.security.fraud-detector",
+                    "com.firefly.banking.security.fraud-detector",
                     fraudDetector,
                     100))
             .then(modelService.loadModel());
@@ -724,7 +724,7 @@ public class TransactionSecurityService {
                                                   Map<String, Object> metadata) {
 
         return pluginManager.getExtensionRegistry()
-                .getExtensions("com.catalis.banking.security.fraud-detector")
+                .getExtensions("com.firefly.banking.security.fraud-detector")
                 .cast(FraudDetector.class)
                 .sort((d1, d2) -> Integer.compare(d2.getPriority(), d1.getPriority()))
                 .next()
@@ -761,15 +761,15 @@ First, let's look at the extension point defined in the core microservice:
 
 ```java
 // In the core-banking-accounts microservice
-package com.catalis.banking.accounts.enrichment;
+package com.firefly.banking.accounts.enrichment;
 
-import com.catalis.core.plugin.annotation.ExtensionPoint;
+import com.firefly.core.plugin.annotation.ExtensionPoint;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
 @ExtensionPoint(
-    id = "com.catalis.banking.accounts.company-enricher",
+    id = "com.firefly.banking.accounts.company-enricher",
     description = "Extension point for company information enrichment services",
     allowMultiple = true
 )
@@ -818,10 +818,10 @@ Now, let's create the main plugin class:
 ```java
 package com.example.enrichment;
 
-import com.catalis.core.plugin.annotation.Plugin;
-import com.catalis.core.plugin.event.PluginEventBus;
-import com.catalis.core.plugin.model.PluginMetadata;
-import com.catalis.core.plugin.spi.AbstractPlugin;
+import com.firefly.core.plugin.annotation.Plugin;
+import com.firefly.core.plugin.event.PluginEventBus;
+import com.firefly.core.plugin.model.PluginMetadata;
+import com.firefly.core.plugin.spi.AbstractPlugin;
 import com.example.enrichment.service.EInformaApiClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -936,8 +936,8 @@ Next, let's implement the `CompanyEnricher` extension point:
 ```java
 package com.example.enrichment.extension;
 
-import com.catalis.banking.accounts.enrichment.CompanyEnricher;
-import com.catalis.core.plugin.annotation.Extension;
+import com.firefly.banking.accounts.enrichment.CompanyEnricher;
+import com.firefly.core.plugin.annotation.Extension;
 import com.example.enrichment.service.EInformaApiClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -950,7 +950,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Extension(
-    extensionPointId = "com.catalis.banking.accounts.company-enricher",
+    extensionPointId = "com.firefly.banking.accounts.company-enricher",
     priority = 100,
     description = "Company enrichment using eInforma Developer API"
 )
@@ -1184,7 +1184,7 @@ public Mono<Void> initialize() {
     // Register the extension
     return getPluginManager().getExtensionRegistry()
             .registerExtension(new ExtensionImpl(
-                    "com.catalis.banking.accounts.company-enricher",
+                    "com.firefly.banking.accounts.company-enricher",
                     enricher,
                     100))
             .then(apiClient.initialize());
@@ -1207,7 +1207,7 @@ public class CompanyEnrichmentService {
 
     public Mono<Map<String, Object>> getCompanyInformation(String identifierType, String identifierValue) {
         return pluginManager.getExtensionRegistry()
-                .getExtensions("com.catalis.banking.accounts.company-enricher")
+                .getExtensions("com.firefly.banking.accounts.company-enricher")
                 .cast(CompanyEnricher.class)
                 .filter(enricher -> enricher.supportsIdentifierType(identifierType))
                 .sort((e1, e2) -> Integer.compare(e2.getPriority(), e1.getPriority()))
@@ -1219,7 +1219,7 @@ public class CompanyEnrichmentService {
 
     public Mono<Map<String, Object>> searchCompanies(String companyName, int maxResults) {
         return pluginManager.getExtensionRegistry()
-                .getExtensions("com.catalis.banking.accounts.company-enricher")
+                .getExtensions("com.firefly.banking.accounts.company-enricher")
                 .cast(CompanyEnricher.class)
                 .sort((e1, e2) -> Integer.compare(e2.getPriority(), e1.getPriority()))
                 .next()
@@ -1255,17 +1255,17 @@ First, let's look at the extension point defined in the core microservice:
 
 ```java
 // In the core-banking-accounts microservice
-package com.catalis.banking.accounts.provider;
+package com.firefly.banking.accounts.provider;
 
-import com.catalis.banking.accounts.model.Account;
-import com.catalis.core.plugin.annotation.ExtensionPoint;
+import com.firefly.banking.accounts.model.Account;
+import com.firefly.core.plugin.annotation.ExtensionPoint;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 
 @ExtensionPoint(
-    id = "com.catalis.banking.accounts.account-provider",
+    id = "com.firefly.banking.accounts.account-provider",
     description = "Extension point for external account providers",
     allowMultiple = true
 )
@@ -1343,10 +1343,10 @@ Now, let's create the main plugin class:
 ```java
 package com.example.treezor;
 
-import com.catalis.core.plugin.annotation.Plugin;
-import com.catalis.core.plugin.event.PluginEventBus;
-import com.catalis.core.plugin.model.PluginMetadata;
-import com.catalis.core.plugin.spi.AbstractPlugin;
+import com.firefly.core.plugin.annotation.Plugin;
+import com.firefly.core.plugin.event.PluginEventBus;
+import com.firefly.core.plugin.model.PluginMetadata;
+import com.firefly.core.plugin.spi.AbstractPlugin;
 import com.example.treezor.service.TreezorApiClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1441,9 +1441,9 @@ Next, let's implement the `AccountProvider` extension point:
 ```java
 package com.example.treezor.extension;
 
-import com.catalis.banking.accounts.model.Account;
-import com.catalis.banking.accounts.provider.AccountProvider;
-import com.catalis.core.plugin.annotation.Extension;
+import com.firefly.banking.accounts.model.Account;
+import com.firefly.banking.accounts.provider.AccountProvider;
+import com.firefly.core.plugin.annotation.Extension;
 import com.example.treezor.service.TreezorApiClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1454,7 +1454,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 @Extension(
-    extensionPointId = "com.catalis.banking.accounts.account-provider",
+    extensionPointId = "com.firefly.banking.accounts.account-provider",
     priority = 100,
     description = "Treezor wallet integration for account management"
 )
@@ -1762,7 +1762,7 @@ public Mono<Void> initialize() {
     // Register the extension
     return getPluginManager().getExtensionRegistry()
             .registerExtension(new ExtensionImpl(
-                    "com.catalis.banking.accounts.account-provider",
+                    "com.firefly.banking.accounts.account-provider",
                     accountProvider,
                     100))
             .then(apiClient.initialize());
@@ -1785,7 +1785,7 @@ public class AccountService {
 
     public Mono<Account> createAccount(Account account) {
         return pluginManager.getExtensionRegistry()
-                .getExtensions("com.catalis.banking.accounts.account-provider")
+                .getExtensions("com.firefly.banking.accounts.account-provider")
                 .cast(AccountProvider.class)
                 .filter(provider -> provider.supportsAccountType(account.getType()))
                 .sort((p1, p2) -> Integer.compare(p2.getPriority(), p1.getPriority()))
@@ -1801,7 +1801,7 @@ public class AccountService {
                 .flatMap(account -> {
                     // Then, use the appropriate provider to get the latest account details
                     return pluginManager.getExtensionRegistry()
-                            .getExtensions("com.catalis.banking.accounts.account-provider")
+                            .getExtensions("com.firefly.banking.accounts.account-provider")
                             .cast(AccountProvider.class)
                             .filter(provider -> provider.getProviderName().equals(account.getProvider()))
                             .next()
@@ -1817,7 +1817,7 @@ public class AccountService {
                 .flatMap(account -> {
                     // Then, use the appropriate provider to get the balance
                     return pluginManager.getExtensionRegistry()
-                            .getExtensions("com.catalis.banking.accounts.account-provider")
+                            .getExtensions("com.firefly.banking.accounts.account-provider")
                             .cast(AccountProvider.class)
                             .filter(provider -> provider.getProviderName().equals(account.getProvider()))
                             .next()

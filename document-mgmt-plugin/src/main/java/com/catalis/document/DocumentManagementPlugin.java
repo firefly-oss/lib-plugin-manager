@@ -1,13 +1,13 @@
-package com.catalis.document;
+package com.firefly.document;
 
-import com.catalis.core.plugin.annotation.Plugin;
-import com.catalis.core.plugin.annotation.Extension;
-import com.catalis.core.plugin.event.PluginEventBus;
-import com.catalis.core.plugin.model.PluginMetadata;
-import com.catalis.core.plugin.spi.AbstractPlugin;
-import com.catalis.document.api.Document;
-import com.catalis.document.api.DocumentManagementExtensionPoint;
-import com.catalis.document.event.DocumentCreatedEvent;
+import com.firefly.core.plugin.annotation.Plugin;
+import com.firefly.core.plugin.annotation.Extension;
+import com.firefly.core.plugin.event.PluginEventBus;
+import com.firefly.core.plugin.model.PluginMetadata;
+import com.firefly.core.plugin.spi.AbstractPlugin;
+import com.firefly.document.api.Document;
+import com.firefly.document.api.DocumentManagementExtensionPoint;
+import com.firefly.document.event.DocumentCreatedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.Disposable;
@@ -23,7 +23,7 @@ import java.util.Map;
  * This plugin provides functionality for creating and managing documents.
  */
 @Plugin(
-        id = "com.catalis.document.document-mgmt-plugin",
+        id = "com.firefly.document.document-mgmt-plugin",
         name = "Document Management Plugin",
         version = "1.0.0",
         description = "Provides document management capabilities including document creation",
@@ -44,7 +44,7 @@ public class DocumentManagementPlugin extends AbstractPlugin {
      */
     public DocumentManagementPlugin(PluginEventBus eventBus) {
         super(PluginMetadata.builder()
-                .id("com.catalis.document.document-mgmt-plugin")
+                .id("com.firefly.document.document-mgmt-plugin")
                 .name("Document Management Plugin")
                 .version("1.0.0")
                 .description("Provides document management capabilities including document creation")
@@ -136,7 +136,7 @@ public class DocumentManagementPlugin extends AbstractPlugin {
      * Implementation of the DocumentManagementExtensionPoint.
      */
     @Extension(
-            extensionPointId = "com.catalis.document.document-management",
+            extensionPointId = "com.firefly.document.document-management",
             priority = 100,
             description = "Standard document management implementation"
     )

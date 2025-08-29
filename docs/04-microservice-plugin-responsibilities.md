@@ -79,7 +79,7 @@ Core microservices form the foundation of the system and have these key responsi
 ```java
 // In core-banking-accounts microservice
 @ExtensionPoint(
-    id = "com.catalis.banking.accounts.account-enricher",
+    id = "com.firefly.banking.accounts.account-enricher",
     description = "Extension point for enriching account information",
     allowMultiple = true
 )
@@ -172,7 +172,7 @@ public class CompanyInfoPlugin extends AbstractPlugin {
     }
     
     @Extension(
-        extensionPointId = "com.catalis.banking.accounts.account-enricher",
+        extensionPointId = "com.firefly.banking.accounts.account-enricher",
         priority = 100,
         description = "Enriches accounts with company information"
     )

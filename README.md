@@ -55,7 +55,7 @@ Add the following dependency to your pom.xml:
 
 ```xml
 <dependency>
-    <groupId>com.catalis</groupId>
+    <groupId>com.firefly</groupId>
     <artifactId>lib-plugin-manager-core</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
