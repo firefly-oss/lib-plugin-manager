@@ -102,7 +102,7 @@
                         <manifestEntries>
                             <Plugin-Id>com.firefly.document.document-mgmt-plugin</Plugin-Id>
                             <Plugin-Version>1.0.0</Plugin-Version>
-                            <Plugin-Provider>Catalis Financial Services</Plugin-Provider>
+                            <Plugin-Provider>Firefly Financial Services</Plugin-Provider>
                         </manifestEntries>
                     </archive>
                 </configuration>

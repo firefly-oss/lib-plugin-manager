@@ -27,7 +27,7 @@ import java.util.Map;
         name = "Document Management Plugin",
         version = "1.0.0",
         description = "Provides document management capabilities including document creation",
-        author = "Catalis Financial Services"
+        author = "Firefly Financial Services"
 )
 public class DocumentManagementPlugin extends AbstractPlugin {
 
@@ -48,7 +48,7 @@ public class DocumentManagementPlugin extends AbstractPlugin {
                 .name("Document Management Plugin")
                 .version("1.0.0")
                 .description("Provides document management capabilities including document creation")
-                .author("Catalis Financial Services")
+                .author("Firefly Financial Services")
                 .build());
 
         this.eventBus = eventBus;
