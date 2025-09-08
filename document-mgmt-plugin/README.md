@@ -31,8 +31,8 @@ To use this plugin in your project, you need to:
 3. Configure the plugin in your application's `application.properties` or `application.yml`:
    ```properties
    # Document Management Plugin Configuration
-   firefly.plugin-manager.plugins.com\.catalis\.document\.document-mgmt-plugin.storageLocation=my-document-storage
-   firefly.plugin-manager.plugins.com\.catalis\.document\.document-mgmt-plugin.connectionTimeout=60
+   firefly.plugin-manager.plugins.com\.firefly\.document\.document-mgmt-plugin.storageLocation=my-document-storage
+   firefly.plugin-manager.plugins.com\.firefly\.document\.document-mgmt-plugin.connectionTimeout=60
    ```
 
 ## Usage
